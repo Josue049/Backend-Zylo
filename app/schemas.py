@@ -57,3 +57,13 @@ class ServiceCreateRequest(BaseModel):
     active: bool = True
     weekly_hours: dict[str, list[str]] | None = None
     professionals: list[dict[str, str]] | None = None
+
+
+class ServiceUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    duration_minutes: Optional[int] = Field(default=None, gt=0)
+    price: Optional[float] = Field(default=None, ge=0)
+    active: Optional[bool] = None
+    weekly_hours: dict[str, list[str]] | None = None
+    professionals: list[dict[str, str]] | None = None
