@@ -62,3 +62,15 @@ def send_message(conversation_id: str, payload: MessageCreateRequest, current_us
     db.commit()
     db.refresh(message)
     return {"message": message_payload(message)}
+
+
+@router.patch("/{conversation_id}/read")
+def mark_conversation_read(conversation_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    conversation = db.get(Conversation, conversation_id)
+    if not conversation or not conversation_visible_to_user(conversation, current_user, db):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    else:
+        conversation.last_read_at_client = utcnow()
+    conversation.updated_at = utcnow()
+    db.commit()
+    return {"message": "Conversation marked as read"}
