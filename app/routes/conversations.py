@@ -49,3 +49,16 @@ def create_or_open_conversation(payload: ConversationCreateRequest, current_user
     db.commit()
     db.refresh(conversation)
     return {"conversation": conversation_payload(conversation, db, current_user)}
+
+
+@router.post("/{conversation_id}/messages")
+def send_message(conversation_id: str, payload: MessageCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    conversation = db.get(Conversation, conversation_id)
+    if not conversation or not conversation_visible_to_user(conversation, current_user, db):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    message = Message(id=make_id("msg"), conversation_id=conversation_id, sender_user_id=current_user.id, content=payload.content)
+    db.add(message)
+    conversation.updated_at = utcnow()
+    db.commit()
+    db.refresh(message)
+    return {"message": message_payload(message)}
