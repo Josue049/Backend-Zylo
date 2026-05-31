@@ -82,3 +82,16 @@ class BookingRescheduleRequest(BaseModel):
 
 class BookingStatusRequest(BaseModel):
     status: Literal["accepted", "rejected"]
+
+
+class AvailabilityBlockCreateRequest(BaseModel):
+    start_at: datetime
+    end_at: datetime
+    reason: Optional[str] = None
+
+
+class BusinessReviewRequest(BaseModel):
+    rating: float = Field(ge=1, le=5)
+    comment: Optional[str] = None
+
+
