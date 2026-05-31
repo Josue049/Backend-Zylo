@@ -28,6 +28,9 @@ def conversation_visible_to_user(conversation: Conversation, user: User, db: Ses
 
 @router.post("")
 def create_or_open_conversation(payload: ConversationCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role == "business_owner":
+        raise HTTPException(status_code=403, detail="Business owners can view conversations but not open them from this endpoint")
+    business = db.get(Business, payload.business_id)
     if existing:
         return {"conversation": conversation_payload(existing, db, current_user)}
     conversation = Conversation(
