@@ -47,3 +47,13 @@ class TeamMemberRequest(BaseModel):
 
 class TeamUpdateRequest(BaseModel):
     items: list[TeamMemberRequest]
+
+
+class ServiceCreateRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    duration_minutes: int = Field(gt=0)
+    price: float = Field(ge=0)
+    active: bool = True
+    weekly_hours: dict[str, list[str]] | None = None
+    professionals: list[dict[str, str]] | None = None
