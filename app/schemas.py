@@ -31,3 +31,19 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+class UpdateUserRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    bio: Optional[str] = None
+
+
+class TeamMemberRequest(BaseModel):
+    id: str
+    name: str
+    role: str
+
+
+class TeamUpdateRequest(BaseModel):
+    items: list[TeamMemberRequest]
