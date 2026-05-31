@@ -67,3 +67,18 @@ class ServiceUpdateRequest(BaseModel):
     active: Optional[bool] = None
     weekly_hours: dict[str, list[str]] | None = None
     professionals: list[dict[str, str]] | None = None
+
+class BookingCreateRequest(BaseModel):
+    business_id: str
+    service_id: str
+    professional_id: str
+    start_at: datetime
+    notes: Optional[str] = None
+
+
+class BookingRescheduleRequest(BaseModel):
+    start_at: datetime
+
+
+class BookingStatusRequest(BaseModel):
+    status: Literal["accepted", "rejected"]
