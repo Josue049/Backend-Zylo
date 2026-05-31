@@ -6,6 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..db import get_db
+from ..deps import get_current_business, get_current_user
+from ..models import Business, Conversation, Message, User
+from ..schemas import ConversationCreateRequest, MessageCreateRequest
+from ..serializers import conversation_payload, message_payload
+from ..utils import make_id
+
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
@@ -29,6 +36,7 @@ def list_conversations(current_user: User = Depends(get_current_user), db: Sessi
         conversations = list(db.scalars(select(Conversation).where(Conversation.user_id == current_user.id).order_by(Conversation.updated_at.desc())))
     return {"items": [conversation_payload(conversation, db, current_user) for conversation in conversations]}
 
+
 @router.post("")
 def create_or_open_conversation(payload: ConversationCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role == "business_owner":
@@ -43,12 +51,23 @@ def create_or_open_conversation(payload: ConversationCreateRequest, current_user
         id=make_id("conv"),
         user_id=current_user.id,
         business_id=payload.business_id,
+        subject=payload.subject,
+        last_read_at_client=utcnow(),
         last_read_at_business=utcnow(),
     )
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
     return {"conversation": conversation_payload(conversation, db, current_user)}
+
+
+@router.get("/{conversation_id}/messages")
+def list_messages(conversation_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    conversation = db.get(Conversation, conversation_id)
+    if not conversation or not conversation_visible_to_user(conversation, current_user, db):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    items = list(db.scalars(select(Message).where(Message.conversation_id == conversation_id).order_by(Message.created_at.asc())))
+    return {"items": [message_payload(message) for message in items]}
 
 
 @router.post("/{conversation_id}/messages")
@@ -69,6 +88,8 @@ def mark_conversation_read(conversation_id: str, current_user: User = Depends(ge
     conversation = db.get(Conversation, conversation_id)
     if not conversation or not conversation_visible_to_user(conversation, current_user, db):
         raise HTTPException(status_code=404, detail="Conversation not found")
+    if current_user.role == "business_owner":
+        conversation.last_read_at_business = utcnow()
     else:
         conversation.last_read_at_client = utcnow()
     conversation.updated_at = utcnow()
