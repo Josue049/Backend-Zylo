@@ -69,3 +69,25 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     return {"token": token, "user": user_payload(user, business_id=user.business_id)}
+
+
+@router.post("/login")
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.scalar(select(User).where(User.email == payload.email.strip().lower()))
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    token = create_session_token()
+    db.add(SessionToken(token=token, user_id=user.id, last_seen_at=datetime.now(timezone.utc)))
+    db.commit()
+    return {"token": token, "user": user_payload(user, business_id=user.business_id)}
+
+@router.post("/logout", response_model=GenericMessageOut)
+def logout(request: Request, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    del current_user
+    token = _extract_session_token(request.headers)
+    if token:
+        session = db.get(SessionToken, token)
+        if session:
+            db.delete(session)
+            db.commit()
+    return {"message": "Sesión cerrada"}
