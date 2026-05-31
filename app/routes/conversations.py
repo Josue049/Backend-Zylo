@@ -34,6 +34,9 @@ def create_or_open_conversation(payload: ConversationCreateRequest, current_user
     if current_user.role == "business_owner":
         raise HTTPException(status_code=403, detail="Business owners can view conversations but not open them from this endpoint")
     business = db.get(Business, payload.business_id)
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    existing = db.scalar(select(Conversation).where(Conversation.business_id == payload.business_id, Conversation.user_id == current_user.id))
     if existing:
         return {"conversation": conversation_payload(existing, db, current_user)}
     conversation = Conversation(
