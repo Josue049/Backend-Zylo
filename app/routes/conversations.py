@@ -25,3 +25,20 @@ def conversation_visible_to_user(conversation: Conversation, user: User, db: Ses
         business = db.scalar(select(Business).where(Business.owner_user_id == user.id))
         return bool(business and conversation.business_id == business.id)
     return conversation.user_id == user.id
+
+@router.post("")
+def create_or_open_conversation(payload: ConversationCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if existing:
+        return {"conversation": conversation_payload(existing, db, current_user)}
+    conversation = Conversation(
+        id=make_id("conv"),
+        user_id=current_user.id,
+        business_id=payload.business_id,
+        subject=payload.subject,
+        last_read_at_client=utcnow(),
+        last_read_at_business=utcnow(),
+    )
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+    return {"conversation": conversation_payload(conversation, db, current_user)}
