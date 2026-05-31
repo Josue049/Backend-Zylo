@@ -91,3 +91,7 @@ def logout(request: Request, current_user=Depends(get_current_user), db: Session
             db.delete(session)
             db.commit()
     return {"message": "Sesión cerrada"}
+
+@router.get("/me")
+def me(current_user=Depends(get_current_user)):
+    return {"user": user_payload(current_user, business_id=current_user.business_id)}
