@@ -48,3 +48,8 @@ def create_or_open_conversation(payload: ConversationCreateRequest, current_user
     db.commit()
     db.refresh(conversation)
     return {"conversation": conversation_payload(conversation, db, current_user)}
+
+
+@router.get("")
+def list_conversations(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return {"items": [conversation_payload(conversation, db, current_user) for conversation in conversations]}
