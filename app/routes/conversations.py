@@ -20,8 +20,8 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def conversation_visible_to_user(conversations: Conversation, user: User, db: Session) -> bool:
+def conversation_visible_to_user(conversation: Conversation, user: User, db: Session) -> bool:
     if user.role == "business_owner":
         business = db.scalar(select(Business).where(Business.owner_user_id == user.id))
-        return bool(business and conversations.business_id == business.id)
-    return conversations.user_id == user.id
+        return bool(business and conversation.business_id == business.id)
+    return conversation.user_id == user.id
