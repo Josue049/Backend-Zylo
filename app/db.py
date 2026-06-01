@@ -13,8 +13,8 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 
 class Settings(BaseSettings):
     database_url: str = "sqlite:////tmp/zylo.db"
-    mail_server: str | None = None
-    mail_port: int | None = None
+    mail_server: str = "smtp.gmail.com"
+    mail_port: int = 587
     mail_username: str | None = None
     mail_password: str | None = None
     mail_from: str | None = None

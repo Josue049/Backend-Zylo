@@ -8,11 +8,8 @@ from .db import settings
 
 def _build_mail_config() -> ConnectionConfig:
     required_values = {
-        "mail_server": settings.mail_server,
-        "mail_port": settings.mail_port,
         "mail_username": settings.mail_username,
         "mail_password": settings.mail_password,
-        "mail_from": settings.mail_from,
     }
     missing_fields = [name for name, value in required_values.items() if value in {None, ""}]
     if missing_fields:
@@ -21,12 +18,14 @@ def _build_mail_config() -> ConnectionConfig:
             detail="Email service is not configured",
         )
 
+    sender_email = settings.mail_from or settings.mail_username
+
     return ConnectionConfig(
         MAIL_SERVER=settings.mail_server,
         MAIL_PORT=settings.mail_port,
         MAIL_USERNAME=settings.mail_username,
         MAIL_PASSWORD=settings.mail_password,
-        MAIL_FROM=settings.mail_from,
+        MAIL_FROM=sender_email,
         MAIL_FROM_NAME=settings.mail_from_name,
         MAIL_STARTTLS=settings.mail_starttls,
         MAIL_SSL_TLS=settings.mail_ssl_tls,

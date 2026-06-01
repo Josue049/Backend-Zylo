@@ -34,16 +34,18 @@ El endpoint `/auth/forgot-password` envía el token por SMTP usando `fastapi-mai
 
 Variables necesarias en el entorno:
 
-- `MAIL_SERVER`
-- `MAIL_PORT`
-- `MAIL_USERNAME`
-- `MAIL_PASSWORD`
-- `MAIL_FROM`
+- `MAIL_SERVER` = `smtp.gmail.com`
+- `MAIL_PORT` = `587`
+- `MAIL_USERNAME` = tu correo de Gmail
+- `MAIL_PASSWORD` = tu app password de Gmail
+- `MAIL_FROM` = opcional, si no se define se usa `MAIL_USERNAME`
 - `MAIL_FROM_NAME` opcional
 - `MAIL_STARTTLS` opcional
 - `MAIL_SSL_TLS` opcional
 - `MAIL_USE_CREDENTIALS` opcional
 - `MAIL_VALIDATE_CERTS` opcional
+
+Importante: Gmail no acepta tu contraseña normal para SMTP. Debes crear una app password en tu cuenta de Google y usarla en `MAIL_PASSWORD`.
 
 ## Estructura del proyecto (resumen)
 
