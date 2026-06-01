@@ -30,3 +30,16 @@ def user_notification_items(user: User, db: Session) -> list[Notification]:
     )
 
 
+@router.get("")
+def list_notifications(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return {
+        "items": [
+            notification_payload(notification)
+            for notification in user_notification_items(current_user, db)
+        ]
+    }
+
+
