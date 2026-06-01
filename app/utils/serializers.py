@@ -23,3 +23,34 @@ def user_payload(user: User, business_id: str | None = None, favorites_count: in
         "created_at": user.created_at,
         "updated_at": user.updated_at,
     }
+
+def user_payload(user: User, business_id: str | None = None, favorites_count: int = 0) -> dict:
+    # ... (Sin cambios)
+
+
+# NUEVA FUNCIÓN
+def business_payload(business: Business, services_count: int = 0, active_services_count: int = 0, category_name: str | None = None) -> dict:
+    return {
+        "id": business.id,
+        "owner_user_id": business.owner_user_id,
+        "name": business.name,
+        "category_id": business.category_id,
+        "category_name": category_name,
+        "description": business.description,
+        "phone": business.phone,
+        "email": business.email,
+        "address": business.address,
+        "city": business.city,
+        "featured": business.featured,
+        "availability_status": business.availability_status,
+        "rating": business.rating,
+        "reviews_count": business.reviews_count,
+        "image_url": business.image_url,
+        "team": business.team or [],
+        "gallery": business.gallery or [],
+        "weekly_hours": business.weekly_hours or {},
+        "services_count": services_count,
+        "active_services_count": active_services_count,
+        "created_at": business.created_at,
+        "updated_at": business.updated_at,
+    }
