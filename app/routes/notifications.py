@@ -63,3 +63,9 @@ def create_notification_from_business(payload: NotificationCreateRequest, curren
     return {"notification": notification_payload(notification)}
 
 
+@router.get("/unread-count")
+def unread_count(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    count = sum(1 for notification in user_notification_items(current_user, db) if not notification.read)
+    return {"count": count}
+
+
