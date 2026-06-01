@@ -67,3 +67,15 @@ def create_booking(payload: BookingCreateRequest, current_user: User = Depends(g
     db.commit()
     db.refresh(booking)
     return {"booking": booking_payload(booking, db)}
+
+@router.get("/{booking_id}")
+def booking_detail(booking_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    booking = db.get(Booking, booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    business = db.get(Business, booking.business_id)
+    is_owner = business and business.owner_user_id == current_user.id
+    is_client = booking.user_id == current_user.id
+    if not (is_owner or is_client):
+        raise HTTPException(status_code=403, detail="Not allowed to view this booking")
+    return {"booking": booking_payload(booking, db)}
