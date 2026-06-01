@@ -70,3 +70,26 @@ def service_payload(service: Service) -> dict:
         "created_at": service.created_at,
         "updated_at": service.updated_at,
     }
+
+# NUEVA FUNCIÓN
+def booking_payload(booking: Booking, db: Session) -> dict:
+    business = db.get(Business, booking.business_id)
+    service = db.get(Service, booking.service_id)
+    user = db.get(User, booking.user_id)
+    return {
+        "id": booking.id,
+        "user_id": booking.user_id,
+        "business_id": booking.business_id,
+        "service_id": booking.service_id,
+        "professional_id": booking.professional_id,
+        "start_at": booking.start_at,
+        "end_at": booking.end_at,
+        "notes": booking.notes,
+        "status": booking.status,
+        "price": booking.price,
+        "created_at": booking.created_at,
+        "updated_at": booking.updated_at,
+        "business": None if not business else {"id": business.id, "name": business.name, "category_id": business.category_id},
+        "service": None if not service else {"id": service.id, "name": service.name, "duration_minutes": service.duration_minutes, "price": service.price},
+        "user": None if not user else {"id": user.id, "name": user.name, "email": user.email},
+    }
