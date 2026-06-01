@@ -93,3 +93,24 @@ def cancel_booking(booking_id: str, current_user: User = Depends(get_current_use
     booking.status = "canceled"
     db.commit()
     return {"booking": booking_payload(booking, db)}
+
+@router.patch("/{booking_id}/reschedule")
+def reschedule_booking(booking_id: str, payload: BookingRescheduleRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    booking = db.get(Booking, booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    business = db.get(Business, booking.business_id)
+    is_owner = business and business.owner_user_id == current_user.id
+    is_client = booking.user_id == current_user.id
+    if not (is_owner or is_client):
+        raise HTTPException(status_code=403, detail="Not allowed")
+    service = db.get(Service, booking.service_id)
+    available, end_at = check_business_availability_for_booking(booking.business_id, payload.start_at, service.duration_minutes, db, ignore_booking_id=booking.id)
+    if not available:
+        raise HTTPException(status_code=409, detail="Business is not available in that time slot")
+    if not service_allows_slot(service, business, payload.start_at, end_at):
+        raise HTTPException(status_code=409, detail="Service is not available in that time slot")
+    booking.start_at = payload.start_at
+    booking.end_at = end_at
+    db.commit()
+    return {"booking": booking_payload(booking, db)}
