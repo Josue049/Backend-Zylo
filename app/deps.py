@@ -39,3 +39,9 @@ def get_current_user(
     session.last_seen_at = datetime.now(timezone.utc)
     db.commit()
     return user
+
+def get_current_business(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Business:
+    if user.role != "business_owner":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Business owner access required")
+    business = db.scalar(select(Business).where(Business.owner_user_id == user.id))
+    return business
