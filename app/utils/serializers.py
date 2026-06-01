@@ -93,3 +93,13 @@ def booking_payload(booking: Booking, db: Session) -> dict:
         "service": None if not service else {"id": service.id, "name": service.name, "duration_minutes": service.duration_minutes, "price": service.price},
         "user": None if not user else {"id": user.id, "name": user.name, "email": user.email},
     }
+
+# NUEVA FUNCIÓN
+def message_payload(message: Message) -> dict:
+    return {
+        "id": message.id,
+        "conversation_id": message.conversation_id,
+        "sender_user_id": message.sender_user_id,
+        "content": message.content,
+        "created_at": message.created_at,
+    }
