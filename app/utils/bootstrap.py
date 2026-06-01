@@ -119,8 +119,9 @@ def seed_demo_data(db: Session) -> None:
                     {"id": "luis", "name": "Luis", "role": "Barbero"},
                 ],
             ),
-            # NUEVOS REGISTROS
             Favorite(user_id=client.id, business_id=business.id),
             SessionToken(token="demo-internal-token", user_id=client.id, last_seen_at=utcnow()),
+            PasswordResetToken(token="demo-reset-token", user_id=client.id, expires_at=utcnow() + timedelta(hours=1)),
         ]
     )
+    db.commit()
