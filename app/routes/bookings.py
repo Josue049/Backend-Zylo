@@ -114,3 +114,23 @@ def reschedule_booking(booking_id: str, payload: BookingRescheduleRequest, curre
     booking.end_at = end_at
     db.commit()
     return {"booking": booking_payload(booking, db)}
+
+@router.patch("/{booking_id}/status")
+def update_booking_status(booking_id: str, payload: BookingStatusRequest, current_business=Depends(get_current_business), db: Session = Depends(get_db)):
+    booking = db.get(Booking, booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking.business_id != current_business.id:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    booking.status = payload.status
+    notification = Notification(
+        id=make_id("note"),
+        recipient_user_id=booking.user_id,
+        type="booking_status",
+        title="Estado de reserva actualizado",
+        message=f"Tu reserva fue {payload.status}",
+        read=False,
+    )
+    db.add(notification)
+    db.commit()
+    return {"booking": booking_payload(booking, db)}
