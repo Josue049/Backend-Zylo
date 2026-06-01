@@ -16,6 +16,8 @@ authorization_key = APIKeyHeader(name="Authorization", auto_error=False)
 
 
 def _normalize_session_token(value: str | None) -> str | None:
+    if not value:
+        return None
     token = value.strip().strip('"').strip("'")
     lowered = token.lower()
     for prefix in ("bearer ", "token ", "jwt "):
