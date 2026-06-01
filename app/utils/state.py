@@ -210,3 +210,30 @@ def get_user_by_session(self, token: str) -> dict[str, Any] | None:
     if user:
         session["last_seen_at"] = utcnow()
     return user
+
+def create_password_reset_token(self, email: str) -> tuple[str, dict[str, Any] | None]:
+    user = next((item for item in self.users.values() if item["email"] == email.strip().lower()), None)
+    if not user:
+        return create_reset_token(), None
+    token = create_reset_token()
+    self.password_reset_tokens[token] = {"user_id": user["id"], "created_at": utcnow(), "expires_at": utcnow() + timedelta(hours=1)}
+    return token, user
+
+def reset_password(self, token: str, new_password: str) -> bool:
+    entry = self.password_reset_tokens.get(token)
+    if not entry or entry["expires_at"] < utcnow():
+        return False
+    user = self.users.get(entry["user_id"])
+    if not user:
+        return False
+    user["password_hash"] = hash_password(new_password)
+    user["updated_at"] = utcnow()
+    del self.password_reset_tokens[token]
+    return True
+
+def business_for_user(self, user_id: str) -> dict[str, Any] | None:
+    user = self.users.get(user_id)
+    business_id = user.get("business_id") if user else None
+    return self.businesses.get(business_id) if business_id else None
+
+state = AppState()
