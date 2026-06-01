@@ -54,3 +54,19 @@ def business_payload(business: Business, services_count: int = 0, active_service
         "created_at": business.created_at,
         "updated_at": business.updated_at,
     }
+
+# NUEVA FUNCIÓN
+def service_payload(service: Service) -> dict:
+    return {
+        "id": service.id,
+        "business_id": service.business_id,
+        "name": service.name,
+        "description": service.description,
+        "duration_minutes": service.duration_minutes,
+        "price": service.price,
+        "active": service.active,
+        "weekly_hours": service.weekly_hours or {},
+        "professionals": service.professionals or [],
+        "created_at": service.created_at,
+        "updated_at": service.updated_at,
+    }
