@@ -43,3 +43,23 @@ def list_notifications(
     }
 
 
+@router.post("")
+def create_notification_from_business(payload: NotificationCreateRequest, current_business=Depends(get_current_business), db: Session = Depends(get_db)):
+    recipient = db.get(User, payload.recipient_user_id)
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient user not found")
+    notification = Notification(
+        id=make_id("note"),
+        recipient_user_id=payload.recipient_user_id,
+        type=payload.type,
+        title=payload.title,
+        message=payload.message,
+        read=False,
+    )
+    del current_business
+    db.add(notification)
+    db.commit()
+    db.refresh(notification)
+    return {"notification": notification_payload(notification)}
+
+
