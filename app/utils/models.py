@@ -27,3 +27,28 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     owned_business: Mapped["Business | None"] = relationship(back_populates="owner", uselist=False, foreign_keys="Business.owner_user_id")
+
+class Business(Base):
+    __tablename__ = "businesses"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    category_id: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    phone: Mapped[str | None] = mapped_column(String(50))
+    email: Mapped[str | None] = mapped_column(String(255))
+    address: Mapped[str | None] = mapped_column(String(255))
+    city: Mapped[str | None] = mapped_column(String(120))
+    featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    availability_status: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    rating: Mapped[float] = mapped_column(Float, default=4.8, nullable=False)
+    reviews_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    image_url: Mapped[str | None] = mapped_column(String(500))
+    team: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    gallery: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    weekly_hours: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    owner: Mapped[User] = relationship(back_populates="owned_business", foreign_keys=[owner_user_id])
