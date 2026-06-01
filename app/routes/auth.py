@@ -95,3 +95,30 @@ def logout(request: Request, current_user=Depends(get_current_user), db: Session
 @router.get("/me")
 def me(current_user=Depends(get_current_user)):
     return {"user": user_payload(current_user, business_id=current_user.business_id)}
+
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.scalar(select(User).where(User.email == payload.email.strip().lower()))
+    token = create_reset_token()
+    if user:
+        db.add(PasswordResetToken(token=token, user_id=user.id, expires_at=datetime.now(timezone.utc) + timedelta(hours=1)))
+        db.commit()
+    return {
+        "message": "Si la cuenta existe, se envió un enlace de recuperación",
+        "reset_token": token,
+        "user_found": bool(user),
+    }
+
+@router.post("/reset-password", response_model=GenericMessageOut)
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    reset_token = db.get(PasswordResetToken, payload.token)
+    now = datetime.now(timezone.utc)
+    if not reset_token or reset_token.expires_at < now:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+    user = db.get(User, reset_token.user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+    user.password_hash = hash_password(payload.new_password)
+    db.delete(reset_token)
+    db.commit()
+    return {"message": "Contraseña actualizada"}
