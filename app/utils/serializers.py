@@ -24,11 +24,7 @@ def user_payload(user: User, business_id: str | None = None, favorites_count: in
         "updated_at": user.updated_at,
     }
 
-def user_payload(user: User, business_id: str | None = None, favorites_count: int = 0) -> dict:
-    # ... (Sin cambios)
 
-
-# NUEVA FUNCIÓN
 def business_payload(business: Business, services_count: int = 0, active_services_count: int = 0, category_name: str | None = None) -> dict:
     return {
         "id": business.id,
@@ -55,7 +51,7 @@ def business_payload(business: Business, services_count: int = 0, active_service
         "updated_at": business.updated_at,
     }
 
-# NUEVA FUNCIÓN
+
 def service_payload(service: Service) -> dict:
     return {
         "id": service.id,
@@ -71,7 +67,7 @@ def service_payload(service: Service) -> dict:
         "updated_at": service.updated_at,
     }
 
-# NUEVA FUNCIÓN
+
 def booking_payload(booking: Booking, db: Session) -> dict:
     business = db.get(Business, booking.business_id)
     service = db.get(Service, booking.service_id)
@@ -94,7 +90,26 @@ def booking_payload(booking: Booking, db: Session) -> dict:
         "user": None if not user else {"id": user.id, "name": user.name, "email": user.email},
     }
 
-# NUEVA FUNCIÓN
+
+def conversation_payload(conversation: Conversation, db: Session, current_user: User) -> dict:
+    messages = list(db.scalars(select(Message).where(Message.conversation_id == conversation.id).order_by(Message.created_at.asc())))
+    read_marker = conversation.last_read_at_business if current_user.role == "business_owner" else conversation.last_read_at_client
+    unread = len([message for message in messages if message.sender_user_id != current_user.id and message.created_at > read_marker])
+    return {
+        "id": conversation.id,
+        "user_id": conversation.user_id,
+        "business_id": conversation.business_id,
+        "subject": conversation.subject,
+        "last_read_at_client": conversation.last_read_at_client,
+        "last_read_at_business": conversation.last_read_at_business,
+        "created_at": conversation.created_at,
+        "updated_at": conversation.updated_at,
+        "messages_count": len(messages),
+        "unread_count": unread,
+        "last_message": None if not messages else message_payload(messages[-1]),
+    }
+
+
 def message_payload(message: Message) -> dict:
     return {
         "id": message.id,
@@ -102,4 +117,17 @@ def message_payload(message: Message) -> dict:
         "sender_user_id": message.sender_user_id,
         "content": message.content,
         "created_at": message.created_at,
+    }
+
+
+def notification_payload(notification: Notification) -> dict:
+    return {
+        "id": notification.id,
+        "recipient_user_id": notification.recipient_user_id,
+        "type": notification.type,
+        "title": notification.title,
+        "message": notification.message,
+        "read": notification.read,
+        "read_at": notification.read_at,
+        "created_at": notification.created_at,
     }
