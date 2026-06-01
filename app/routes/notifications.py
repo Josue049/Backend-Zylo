@@ -1,0 +1,32 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from ..db import get_db
+from ..deps import get_current_business, get_current_user
+from ..models import Notification, User
+from ..schemas import NotificationCreateRequest
+from ..serializers import notification_payload
+from ..utils import make_id
+
+router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def user_notification_items(user: User, db: Session) -> list[Notification]:
+    return list(
+        db.scalars(
+            select(Notification)
+            .where(Notification.recipient_user_id == user.id)
+            .order_by(Notification.created_at.desc())
+        )
+    )
+
+
