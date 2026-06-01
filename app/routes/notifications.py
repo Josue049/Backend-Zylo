@@ -69,3 +69,15 @@ def unread_count(current_user: User = Depends(get_current_user), db: Session = D
     return {"count": count}
 
 
+@router.patch("/{notification_id}/read")
+def mark_notification_read(notification_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    notification = db.get(Notification, notification_id)
+    if not notification or notification.recipient_user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    notification.read = True
+    notification.read_at = utcnow()
+    db.commit()
+    return {"notification": notification_payload(notification)}
+
+
+
