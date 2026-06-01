@@ -6,7 +6,12 @@ import httpx
 def upload_image_bytes(
     *,
     cloud_name: str,
+    api_key: str,
+    api_secret: str,
     folder: str,
+    file_name: str,
+    file_bytes: bytes,
+    content_type: str | None,
     public_id: str,
     timeout_seconds: float = 15.0,
 ) -> dict[str, Any]:
