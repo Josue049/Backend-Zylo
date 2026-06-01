@@ -112,3 +112,81 @@ class AppState:
         )
 
         self.favorites[client["id"]].add(business["id"])
+
+        def create_user(self, payload: dict[str, Any]) -> dict[str, Any]:
+    email = payload["email"].strip().lower()
+    if any(user["email"] == email for user in self.users.values()):
+        raise ValueError("email already registered")
+
+    user_id = make_id("user")
+    user = {
+        "id": user_id,
+        "name": payload["name"],
+        "email": email,
+        "password_hash": hash_password(payload["password"]),
+        "phone": payload.get("phone"),
+        "location": payload.get("location"),
+        "photo_url": payload.get("photo_url"),
+        "bio": payload.get("bio"),
+        "role": payload.get("role", "client"),
+        "business_id": payload.get("business_id"),
+        "created_at": utcnow(),
+        "updated_at": utcnow(),
+    }
+    self.users[user_id] = user
+    return user
+
+def create_business(self, owner_user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    business_id = make_id("biz")
+    business = {
+        "id": business_id,
+        "owner_user_id": owner_user_id,
+        "name": payload["name"],
+        "category_id": payload.get("category_id", "salon"),
+        "description": payload.get("description"),
+        "phone": payload.get("phone"),
+        "email": payload.get("email"),
+        "address": payload.get("address"),
+        "city": payload.get("city"),
+        "featured": payload.get("featured", False),
+        "availability_status": payload.get("availability_status", True),
+        "rating": payload.get("rating", 4.8),
+        "reviews_count": payload.get("reviews_count", 120),
+        "image_url": payload.get("image_url", "https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&w=1200&q=80"),
+        "team": payload.get("team", []),
+        "gallery": payload.get("gallery", []),
+        "weekly_hours": payload.get(
+            "weekly_hours",
+            {
+                "monday": ["09:00", "18:00"],
+                "tuesday": ["09:00", "18:00"],
+                "wednesday": ["09:00", "18:00"],
+                "thursday": ["09:00", "18:00"],
+                "friday": ["09:00", "18:00"],
+                "saturday": ["10:00", "15:00"],
+                "sunday": [],
+            },
+        ),
+        "created_at": utcnow(),
+        "updated_at": utcnow(),
+    }
+    self.businesses[business_id] = business
+    self.users[owner_user_id]["business_id"] = business_id
+    return business
+
+def add_service(self, business_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    service_id = make_id("srv")
+    service = {
+        "id": service_id,
+        "business_id": business_id,
+        "name": payload["name"],
+        "description": payload.get("description"),
+        "duration_minutes": payload.get("duration_minutes", 30),
+        "price": payload.get("price", 0.0),
+        "active": payload.get("active", True),
+        "created_at": utcnow(),
+        "updated_at": utcnow(),
+    }
+    self.services[service_id] = service
+    return service
+
