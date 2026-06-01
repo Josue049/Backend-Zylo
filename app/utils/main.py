@@ -73,6 +73,13 @@ def ensure_service_schema() -> None:
         with engine.begin() as connection:
             for statement in statements:
                 connection.execute(text(statement))
+                
+@app.on_event("startup")
+def on_startup() -> None:
+    Base.metadata.create_all(bind=engine)
+    ensure_service_schema()
+    with SessionLocal() as db:
+        seed_demo_data(db)
 
 @app.get("/")
 def healthcheck():
