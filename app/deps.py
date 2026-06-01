@@ -26,6 +26,14 @@ def _normalize_session_token(value: str | None) -> str | None:
             break
     return token or None
 
+def _extract_session_token(headers: Mapping[str, str]) -> str | None:
+    return _normalize_session_token(
+        headers.get("authorization")
+        or headers.get("x-access-token")
+        or headers.get("x-auth-token")
+        or headers.get("token")
+    )
+
 def get_current_user(
     request: Request,
     authorization: str | None = Security(authorization_key),
