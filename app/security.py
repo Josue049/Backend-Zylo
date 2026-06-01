@@ -28,4 +28,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
     candidate = hash_password(password, salt)
 
     return hmac.compare_digest(candidate, hashed_password)
+    
 
+def create_session_token() -> str:
+    return secrets.token_urlsafe(32)
