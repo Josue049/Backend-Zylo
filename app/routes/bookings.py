@@ -13,6 +13,7 @@ from .businesses import check_business_availability_for_booking, service_allows_
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
+
 @router.post("")
 def create_booking(payload: BookingCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "client":
@@ -68,6 +69,7 @@ def create_booking(payload: BookingCreateRequest, current_user: User = Depends(g
     db.refresh(booking)
     return {"booking": booking_payload(booking, db)}
 
+
 @router.get("/{booking_id}")
 def booking_detail(booking_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     booking = db.get(Booking, booking_id)
@@ -79,6 +81,7 @@ def booking_detail(booking_id: str, current_user: User = Depends(get_current_use
     if not (is_owner or is_client):
         raise HTTPException(status_code=403, detail="Not allowed to view this booking")
     return {"booking": booking_payload(booking, db)}
+
 
 @router.patch("/{booking_id}/cancel")
 def cancel_booking(booking_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -93,6 +96,7 @@ def cancel_booking(booking_id: str, current_user: User = Depends(get_current_use
     booking.status = "canceled"
     db.commit()
     return {"booking": booking_payload(booking, db)}
+
 
 @router.patch("/{booking_id}/reschedule")
 def reschedule_booking(booking_id: str, payload: BookingRescheduleRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -114,6 +118,7 @@ def reschedule_booking(booking_id: str, payload: BookingRescheduleRequest, curre
     booking.end_at = end_at
     db.commit()
     return {"booking": booking_payload(booking, db)}
+
 
 @router.patch("/{booking_id}/status")
 def update_booking_status(booking_id: str, payload: BookingStatusRequest, current_business=Depends(get_current_business), db: Session = Depends(get_db)):

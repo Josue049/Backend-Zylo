@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
+from datetime import datetime
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
+
 
 AccountType = Literal["user", "business"]
 
@@ -31,6 +33,7 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
 
 class UpdateUserRequest(BaseModel):
     name: Optional[str] = None
@@ -68,6 +71,7 @@ class ServiceUpdateRequest(BaseModel):
     weekly_hours: dict[str, list[str]] | None = None
     professionals: list[dict[str, str]] | None = None
 
+
 class BookingCreateRequest(BaseModel):
     business_id: str
     service_id: str
@@ -84,15 +88,15 @@ class BookingStatusRequest(BaseModel):
     status: Literal["accepted", "rejected"]
 
 
+class BusinessReviewRequest(BaseModel):
+    rating: float = Field(ge=1, le=5)
+    comment: Optional[str] = None
+
+
 class AvailabilityBlockCreateRequest(BaseModel):
     start_at: datetime
     end_at: datetime
     reason: Optional[str] = None
-
-
-class BusinessReviewRequest(BaseModel):
-    rating: float = Field(ge=1, le=5)
-    comment: Optional[str] = None
 
 
 class ConversationCreateRequest(BaseModel):

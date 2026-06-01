@@ -19,7 +19,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register")
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
-    if payload.account_type == "business" y not payload.business_name:
+    if payload.account_type == "business" and not payload.business_name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="business_name is required for business accounts")
 
     email = payload.email.strip().lower()
@@ -81,6 +81,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     db.commit()
     return {"token": token, "user": user_payload(user, business_id=user.business_id)}
 
+
 @router.post("/logout", response_model=GenericMessageOut)
 def logout(request: Request, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     del current_user
@@ -92,9 +93,11 @@ def logout(request: Request, current_user=Depends(get_current_user), db: Session
             db.commit()
     return {"message": "Sesión cerrada"}
 
+
 @router.get("/me")
 def me(current_user=Depends(get_current_user)):
     return {"user": user_payload(current_user, business_id=current_user.business_id)}
+
 
 @router.post("/forgot-password")
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
@@ -108,6 +111,7 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
         "reset_token": token,
         "user_found": bool(user),
     }
+
 
 @router.post("/reset-password", response_model=GenericMessageOut)
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):

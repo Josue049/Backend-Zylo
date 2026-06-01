@@ -33,6 +33,7 @@ def update_service(service_id: str, payload: ServiceUpdateRequest, current_busin
     db.refresh(service)
     return {"service": service_payload(service)}
 
+
 @router.delete("/{service_id}")
 def delete_service(service_id: str, current_business=Depends(get_current_business), db: Session = Depends(get_db)):
     service = db.get(Service, service_id)

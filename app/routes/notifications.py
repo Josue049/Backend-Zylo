@@ -21,26 +21,12 @@ def utcnow() -> datetime:
 
 
 def user_notification_items(user: User, db: Session) -> list[Notification]:
-    return list(
-        db.scalars(
-            select(Notification)
-            .where(Notification.recipient_user_id == user.id)
-            .order_by(Notification.created_at.desc())
-        )
-    )
+    return list(db.scalars(select(Notification).where(Notification.recipient_user_id == user.id).order_by(Notification.created_at.desc())))
 
 
 @router.get("")
-def list_notifications(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    return {
-        "items": [
-            notification_payload(notification)
-            for notification in user_notification_items(current_user, db)
-        ]
-    }
+def list_notifications(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return {"items": [notification_payload(notification) for notification in user_notification_items(current_user, db)]}
 
 
 @router.post("")
@@ -80,4 +66,20 @@ def mark_notification_read(notification_id: str, current_user: User = Depends(ge
     return {"notification": notification_payload(notification)}
 
 
+@router.patch("/read-all")
+def mark_all_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    for notification in user_notification_items(current_user, db):
+        notification.read = True
+        notification.read_at = utcnow()
+    db.commit()
+    return {"message": "All notifications marked as read"}
 
+
+@router.delete("/{notification_id}")
+def delete_notification(notification_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    notification = db.get(Notification, notification_id)
+    if not notification or notification.recipient_user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    db.delete(notification)
+    db.commit()
+    return {"message": "Notification deleted"}
