@@ -19,3 +19,13 @@ def hash_password(password: str, salt: str | None = None) -> str:
     return f"{salt}${digest}"
 
 
+def verify_password(password: str, hashed_password: str) -> bool:
+    try:
+        salt, _digest = hashed_password.split("$", 1)
+    except ValueError:
+        return False
+
+    candidate = hash_password(password, salt)
+
+    return hmac.compare_digest(candidate, hashed_password)
+
