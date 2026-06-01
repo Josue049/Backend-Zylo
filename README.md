@@ -27,6 +27,24 @@ Requiere instalación de librerias previamente
 ```bash
 uvicorn app.main:app --reload
 ```
+
+## Recuperación de contraseña por correo
+
+El endpoint `/auth/forgot-password` envía el token por SMTP usando `fastapi-mail`.
+
+Variables necesarias en el entorno:
+
+- `MAIL_SERVER`
+- `MAIL_PORT`
+- `MAIL_USERNAME`
+- `MAIL_PASSWORD`
+- `MAIL_FROM`
+- `MAIL_FROM_NAME` opcional
+- `MAIL_STARTTLS` opcional
+- `MAIL_SSL_TLS` opcional
+- `MAIL_USE_CREDENTIALS` opcional
+- `MAIL_VALIDATE_CERTS` opcional
+
 ## Estructura del proyecto (resumen)
 
 - `app/` — código del backend y rutas

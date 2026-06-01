@@ -10,6 +10,7 @@ from ..db import get_db
 from ..deps import _extract_session_token, get_current_user
 from ..models import Business, PasswordResetToken, SessionToken, User
 from ..schemas import ForgotPasswordRequest, GenericMessageOut, LoginRequest, RegisterRequest, ResetPasswordRequest
+from ..mailer import send_password_reset_email
 from ..security import create_reset_token, create_session_token, hash_password, verify_password
 from ..serializers import user_payload
 from ..utils import make_id
@@ -100,15 +101,21 @@ def me(current_user=Depends(get_current_user)):
 
 
 @router.post("/forgot-password")
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+async def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.email == payload.email.strip().lower()))
-    token = create_reset_token()
     if user:
-        db.add(PasswordResetToken(token=token, user_id=user.id, expires_at=datetime.now(timezone.utc) + timedelta(hours=1)))
+        token = create_reset_token()
+        reset_token = PasswordResetToken(token=token, user_id=user.id, expires_at=datetime.now(timezone.utc) + timedelta(hours=1))
+        db.add(reset_token)
         db.commit()
+        try:
+            await send_password_reset_email(user.email, token)
+        except Exception as exc:
+            db.delete(reset_token)
+            db.commit()
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="No fue posible enviar el correo de recuperación") from exc
     return {
         "message": "Si la cuenta existe, se envió un enlace de recuperación",
-        "reset_token": token,
         "user_found": bool(user),
     }
 
