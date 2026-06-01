@@ -91,3 +91,8 @@ def remove_favorite(business_id: str, current_user=Depends(get_current_user), db
         db.delete(favorite)
         db.commit()
     return {"message": "Eliminado de favoritos"}
+
+@router.get("/me/bookings")
+def list_my_bookings(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    bookings = list(db.scalars(select(Booking).where(Booking.user_id == current_user.id).order_by(Booking.start_at.desc())))
+    return {"items": [booking_payload(booking, db) for booking in bookings]}
