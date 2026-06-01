@@ -25,3 +25,17 @@ def _normalize_session_token(value: str | None) -> str | None:
             token = token.split(" ", 1)[1].strip()
             break
     return token or None
+
+def get_current_user(
+    request: Request,
+    authorization: str | None = Security(authorization_key),
+    db: Session = Depends(get_db),
+) -> User:
+    token = _extract_session_token(request.headers)
+    if not token and authorization:
+        token = _normalize_session_token(authorization)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired session")
+    session.last_seen_at = datetime.now(timezone.utc)
+    db.commit()
+    return user
