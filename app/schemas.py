@@ -95,3 +95,21 @@ class BusinessReviewRequest(BaseModel):
     comment: Optional[str] = None
 
 
+class ConversationCreateRequest(BaseModel):
+    business_id: str
+    subject: Optional[str] = None
+
+
+class MessageCreateRequest(BaseModel):
+    content: str
+
+
+class NotificationCreateRequest(BaseModel):
+    recipient_user_id: str
+    type: str
+    title: str
+    message: str
+
+
+class GenericMessageOut(BaseModel):
+    message: str
