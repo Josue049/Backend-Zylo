@@ -79,10 +79,13 @@ def ensure_service_schema() -> None:
 
 @app.on_event("startup")
 def on_startup() -> None:
-    Base.metadata.create_all(bind=engine)
-    ensure_service_schema()
-    with SessionLocal() as db:
-        seed_demo_data(db)
+    try:
+        Base.metadata.create_all(bind=engine)
+        ensure_service_schema()
+        with SessionLocal() as db:
+            seed_demo_data(db)
+    except Exception:
+        return
 
 
 @app.get("/")
