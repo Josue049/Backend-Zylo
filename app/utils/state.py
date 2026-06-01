@@ -190,3 +190,23 @@ def add_service(self, business_id: str, payload: dict[str, Any]) -> dict[str, An
     self.services[service_id] = service
     return service
 
+def authenticate(self, email: str, password: str) -> dict[str, Any] | None:
+    normalized = email.strip().lower()
+    user = next((item for item in self.users.values() if item["email"] == normalized), None)
+    if not user or not verify_password(password, user["password_hash"]):
+        return None
+    return user
+
+def create_session(self, user_id: str) -> str:
+    token = create_session_token()
+    self.sessions[token] = {"user_id": user_id, "created_at": utcnow(), "last_seen_at": utcnow()}
+    return token
+
+def get_user_by_session(self, token: str) -> dict[str, Any] | None:
+    session = self.sessions.get(token)
+    if not session:
+        return None
+    user = self.users.get(session["user_id"])
+    if user:
+        session["last_seen_at"] = utcnow()
+    return user
