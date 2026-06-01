@@ -73,3 +73,54 @@ def seed_demo_data(db: Session) -> None:
     db.flush()
 
     business_owner.business_id = business.id
+    
+    db.add_all(
+        [
+            Service(
+                id=make_id("srv"),
+                business_id=business.id,
+                name="Corte de cabello",
+                description="Corte profesional y lavado.",
+                duration_minutes=45,
+                price=18.0,
+                active=True,
+                weekly_hours={
+                    "monday": ["09:00", "13:00"],
+                    "tuesday": ["09:00", "13:00"],
+                    "wednesday": ["09:00", "13:00"],
+                    "thursday": ["09:00", "13:00"],
+                    "friday": ["09:00", "13:00"],
+                    "saturday": ["10:00", "14:00"],
+                    "sunday": [],
+                },
+                professionals=[
+                    {"id": "ana", "name": "Ana", "role": "Estilista"},
+                    {"id": "luis", "name": "Luis", "role": "Barbero"},
+                ],
+            ),
+            Service(
+                id=make_id("srv"),
+                business_id=business.id,
+                name="Barba",
+                description="Perfilado y acabado.",
+                duration_minutes=30,
+                price=12.0,
+                active=True,
+                weekly_hours={
+                    "monday": ["13:00", "18:00"],
+                    "tuesday": ["13:00", "18:00"],
+                    "wednesday": ["13:00", "18:00"],
+                    "thursday": ["13:00", "18:00"],
+                    "friday": ["13:00", "18:00"],
+                    "saturday": ["10:00", "15:00"],
+                    "sunday": [],
+                },
+                professionals=[
+                    {"id": "luis", "name": "Luis", "role": "Barbero"},
+                ],
+            ),
+            # NUEVOS REGISTROS
+            Favorite(user_id=client.id, business_id=business.id),
+            SessionToken(token="demo-internal-token", user_id=client.id, last_seen_at=utcnow()),
+        ]
+    )
