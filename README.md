@@ -2,7 +2,7 @@
 
 Resumen del backend de Zylo: una API en Python diseñada para manejar usuarios, negocios, servicios y reservas, con endpoints organizados en `app/routes/`.
 
-**Proyecto para UTP 2026 - Segundo avabce**
+**Proyecto para UTP 2026 - Segundo avance**
 **Curso:** Herramientas de desarrollo
 
 **Tecnologías principales:** Python, FastAPI
