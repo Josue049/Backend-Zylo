@@ -258,3 +258,10 @@ def business_services(business_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Business not found")
     items = list(db.scalars(select(Service).where(Service.business_id == business_id).order_by(Service.created_at.desc())))
     return {"items": [service_payload(service) for service in items]}
+
+@router.get("/{business_id}/team")
+def business_team(business_id: str, db: Session = Depends(get_db)):
+    business = db.get(Business, business_id)
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    return {"items": business.team or []}
