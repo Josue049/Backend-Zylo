@@ -250,3 +250,11 @@ def business_stats(current_business: Business = Depends(get_current_business), d
         "reviews_count": len(reviews),
         "average_rating": average_rating,
     }
+
+@router.get("/{business_id}/services")
+def business_services(business_id: str, db: Session = Depends(get_db)):
+    business = db.get(Business, business_id)
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    items = list(db.scalars(select(Service).where(Service.business_id == business_id).order_by(Service.created_at.desc())))
+    return {"items": [service_payload(service) for service in items]}
