@@ -176,3 +176,10 @@ def create_my_service(payload: ServiceCreateRequest, current_business: Business 
     db.commit()
     db.refresh(service)
     return {"service": service_payload(service)}
+
+@router.patch("/me/team")
+def update_my_team(payload: TeamUpdateRequest, current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    current_business.team = [member.model_dump() for member in payload.items]
+    db.commit()
+    db.refresh(current_business)
+    return {"team": current_business.team or []}
