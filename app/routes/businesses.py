@@ -272,3 +272,23 @@ def business_gallery(business_id: str, db: Session = Depends(get_db)):
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
     return {"items": business.gallery or []}
+
+@router.get("/{business_id}/availability")
+def business_availability(business_id: str, db: Session = Depends(get_db)):
+    business = db.get(Business, business_id)
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    blocks = list(db.scalars(select(AvailabilityBlock).where(AvailabilityBlock.business_id == business_id)))
+    bookings = list(db.scalars(select(Booking).where(Booking.business_id == business_id, ~Booking.status.in_(["canceled", "rejected"]))))
+    return {
+        "business_id": business_id,
+        "blocks": [
+            {"id": block.id, "business_id": block.business_id, "start_at": block.start_at, "end_at": block.end_at, "reason": block.reason, "created_at": block.created_at}
+            for block in blocks
+        ],
+        "bookings": [
+            {"id": booking.id, "user_id": booking.user_id, "business_id": booking.business_id, "service_id": booking.service_id, "start_at": booking.start_at, "end_at": booking.end_at, "notes": booking.notes, "status": booking.status, "price": booking.price, "created_at": booking.created_at, "updated_at": booking.updated_at}
+            for booking in bookings
+        ],
+        "weekly_hours": business.weekly_hours or {},
+    }
