@@ -117,3 +117,23 @@ def recalculate_business_rating(db: Session, business: Business) -> None:
     reviews = list(db.scalars(select(Review).where(Review.business_id == business.id)))
     business.reviews_count = len(reviews)
     business.rating = round(sum(review.rating for review in reviews) / len(reviews), 2) if reviews else 0.0
+
+@router.get("")
+def list_businesses(
+    search: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+    featured: bool | None = Query(default=None),
+    available: bool | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    businesses = list(db.scalars(select(Business).order_by(Business.created_at.desc())))
+    if search:
+        term = search.lower()
+        businesses = [business for business in businesses if term in business.name.lower() or term in (business.description or "").lower()]
+    if category:
+        businesses = [business for business in businesses if business.category_id == category]
+    if featured is not None:
+        businesses = [business for business in businesses if business.featured == featured]
+    if available is not None:
+        businesses = [business for business in businesses if business.availability_status == available]
+    return {"items": [serialize_business(db, business) for business in businesses]}
