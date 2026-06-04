@@ -232,3 +232,21 @@ def weekly_agenda(current_business: Business = Depends(get_current_business), db
         if start <= booking_date < end:
             agenda[str(booking_date)].append(booking.__dict__)
     return {"agenda": dict(agenda)}
+
+@router.get("/me/stats")
+def business_stats(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    bookings = list(db.scalars(select(Booking).where(Booking.business_id == current_business.id)))
+    reviews = list(db.scalars(select(Review).where(Review.business_id == current_business.id)))
+    by_service = defaultdict(int)
+    by_status = defaultdict(int)
+    for booking in bookings:
+        by_service[booking.service_id] += 1
+        by_status[booking.status] += 1
+    average_rating = round(sum(review.rating for review in reviews) / len(reviews), 2) if reviews else 0.0
+    return {
+        "by_service": dict(by_service),
+        "by_status": dict(by_status),
+        "total": len(bookings),
+        "reviews_count": len(reviews),
+        "average_rating": average_rating,
+    }
