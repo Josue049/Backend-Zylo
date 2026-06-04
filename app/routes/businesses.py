@@ -221,3 +221,14 @@ def dashboard_summary(current_business: Business = Depends(get_current_business)
         "revenue_estimate": sum(booking.price for booking in bookings if booking.status in {"accepted", "completed"}),
     }
     return {"summary": summary}
+
+@router.get("/me/weekly-agenda")
+def weekly_agenda(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    start = utcnow().date()
+    end = start + timedelta(days=7)
+    agenda = defaultdict(list)
+    for booking in db.scalars(select(Booking).where(Booking.business_id == current_business.id)):
+        booking_date = booking.start_at.date()
+        if start <= booking_date < end:
+            agenda[str(booking_date)].append(booking.__dict__)
+    return {"agenda": dict(agenda)}
