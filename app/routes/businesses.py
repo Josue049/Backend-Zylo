@@ -141,3 +141,8 @@ def list_businesses(
 @router.get("/categories")
 def list_categories():
     return {"items": CATEGORIES}
+
+@router.get("/featured")
+def featured_businesses(db: Session = Depends(get_db)):
+    businesses = list(db.scalars(select(Business).where(Business.featured.is_(True)).order_by(Business.created_at.desc())))
+    return {"items": [serialize_business(db, business) for business in businesses]}
