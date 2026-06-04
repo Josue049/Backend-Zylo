@@ -151,3 +151,28 @@ def featured_businesses(db: Session = Depends(get_db)):
 def list_my_services(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
     items = list(db.scalars(select(Service).where(Service.business_id == current_business.id).order_by(Service.created_at.desc())))
     return {"items": [service_payload(service) for service in items]}
+
+@router.post("/me/services")
+def create_my_service(payload: ServiceCreateRequest, current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    professionals = payload.professionals or []
+    if not professionals:
+        raise HTTPException(status_code=400, detail="At least one professional is required")
+    team_member_ids = business_team_member_ids(current_business)
+    for professional in professionals:
+        if professional.get("id") not in team_member_ids:
+            raise HTTPException(status_code=400, detail="Each professional must exist in the business team")
+    service = Service(
+        id=make_id("srv"),
+        business_id=current_business.id,
+        name=payload.name,
+        description=payload.description,
+        duration_minutes=payload.duration_minutes,
+        price=payload.price,
+        active=payload.active,
+        weekly_hours=payload.weekly_hours or {},
+        professionals=professionals,
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+    return {"service": service_payload(service)}
