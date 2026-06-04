@@ -27,7 +27,6 @@ CATEGORIES = [
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
-
 def category_name(category_id: str | None) -> str | None:
     if not category_id:
         return None
@@ -119,7 +118,6 @@ def recalculate_business_rating(db: Session, business: Business) -> None:
     business.reviews_count = len(reviews)
     business.rating = round(sum(review.rating for review in reviews) / len(reviews), 2) if reviews else 0.0
 
-
 @router.get("")
 def list_businesses(
     search: str | None = Query(default=None),
@@ -140,23 +138,19 @@ def list_businesses(
         businesses = [business for business in businesses if business.availability_status == available]
     return {"items": [serialize_business(db, business) for business in businesses]}
 
-
 @router.get("/categories")
 def list_categories():
     return {"items": CATEGORIES}
-
 
 @router.get("/featured")
 def featured_businesses(db: Session = Depends(get_db)):
     businesses = list(db.scalars(select(Business).where(Business.featured.is_(True)).order_by(Business.created_at.desc())))
     return {"items": [serialize_business(db, business) for business in businesses]}
 
-
 @router.get("/me/services")
 def list_my_services(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
     items = list(db.scalars(select(Service).where(Service.business_id == current_business.id).order_by(Service.created_at.desc())))
     return {"items": [service_payload(service) for service in items]}
-
 
 @router.post("/me/services")
 def create_my_service(payload: ServiceCreateRequest, current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
@@ -183,14 +177,12 @@ def create_my_service(payload: ServiceCreateRequest, current_business: Business 
     db.refresh(service)
     return {"service": service_payload(service)}
 
-
 @router.patch("/me/team")
 def update_my_team(payload: TeamUpdateRequest, current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
     current_business.team = [member.model_dump() for member in payload.items]
     db.commit()
     db.refresh(current_business)
     return {"team": current_business.team or []}
-
 
 @router.get("/me/bookings")
 def list_my_business_bookings(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
@@ -214,7 +206,6 @@ def list_my_business_bookings(current_business: Business = Depends(get_current_b
         ]
     }
 
-
 @router.get("/me/dashboard-summary")
 def dashboard_summary(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
     bookings = list(db.scalars(select(Booking).where(Booking.business_id == current_business.id)))
@@ -231,7 +222,6 @@ def dashboard_summary(current_business: Business = Depends(get_current_business)
     }
     return {"summary": summary}
 
-
 @router.get("/me/weekly-agenda")
 def weekly_agenda(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
     start = utcnow().date()
@@ -242,7 +232,6 @@ def weekly_agenda(current_business: Business = Depends(get_current_business), db
         if start <= booking_date < end:
             agenda[str(booking_date)].append(booking.__dict__)
     return {"agenda": dict(agenda)}
-
 
 @router.get("/me/stats")
 def business_stats(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
@@ -262,7 +251,6 @@ def business_stats(current_business: Business = Depends(get_current_business), d
         "average_rating": average_rating,
     }
 
-
 @router.get("/{business_id}/services")
 def business_services(business_id: str, db: Session = Depends(get_db)):
     business = db.get(Business, business_id)
@@ -271,7 +259,6 @@ def business_services(business_id: str, db: Session = Depends(get_db)):
     items = list(db.scalars(select(Service).where(Service.business_id == business_id).order_by(Service.created_at.desc())))
     return {"items": [service_payload(service) for service in items]}
 
-
 @router.get("/{business_id}/team")
 def business_team(business_id: str, db: Session = Depends(get_db)):
     business = db.get(Business, business_id)
@@ -279,14 +266,12 @@ def business_team(business_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Business not found")
     return {"items": business.team or []}
 
-
 @router.get("/{business_id}/gallery")
 def business_gallery(business_id: str, db: Session = Depends(get_db)):
     business = db.get(Business, business_id)
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
     return {"items": business.gallery or []}
-
 
 @router.get("/{business_id}/availability")
 def business_availability(business_id: str, db: Session = Depends(get_db)):
@@ -308,14 +293,12 @@ def business_availability(business_id: str, db: Session = Depends(get_db)):
         "weekly_hours": business.weekly_hours or {},
     }
 
-
 @router.get("/{business_id}")
 def business_detail(business_id: str, db: Session = Depends(get_db)):
     business = db.get(Business, business_id)
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
     return {"business": serialize_business(db, business)}
-
 
 @router.get("/{business_id}/reviews")
 def business_reviews(business_id: str, db: Session = Depends(get_db)):
@@ -337,7 +320,6 @@ def business_reviews(business_id: str, db: Session = Depends(get_db)):
             for review in reviews
         ]
     }
-
 
 @router.post("/{business_id}/reviews")
 def rate_business(business_id: str, payload: BusinessReviewRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -383,7 +365,6 @@ def rate_business(business_id: str, payload: BusinessReviewRequest, current_user
         "business": serialize_business(db, business),
     }
 
-
 @router.post("/{business_id}/availability-blocks")
 def add_availability_block(business_id: str, payload: AvailabilityBlockCreateRequest, current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
     if current_business.id != business_id:
@@ -399,7 +380,6 @@ def add_availability_block(business_id: str, payload: AvailabilityBlockCreateReq
     db.commit()
     db.refresh(block)
     return {"block": block.__dict__}
-
 
 @router.delete("/{business_id}/availability-blocks/{block_id}")
 def remove_availability_block(business_id: str, block_id: str, current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
