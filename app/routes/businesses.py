@@ -292,3 +292,10 @@ def business_availability(business_id: str, db: Session = Depends(get_db)):
         ],
         "weekly_hours": business.weekly_hours or {},
     }
+
+@router.get("/{business_id}")
+def business_detail(business_id: str, db: Session = Depends(get_db)):
+    business = db.get(Business, business_id)
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    return {"business": serialize_business(db, business)}
