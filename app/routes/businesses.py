@@ -205,3 +205,19 @@ def list_my_business_bookings(current_business: Business = Depends(get_current_b
             for booking in items
         ]
     }
+
+@router.get("/me/dashboard-summary")
+def dashboard_summary(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    bookings = list(db.scalars(select(Booking).where(Booking.business_id == current_business.id)))
+    today = utcnow().date()
+    todays_bookings = [booking for booking in bookings if booking.start_at.date() == today]
+    summary = {
+        "today_bookings": len(todays_bookings),
+        "total_bookings": len(bookings),
+        "pending": sum(1 for booking in bookings if booking.status == "pending"),
+        "accepted": sum(1 for booking in bookings if booking.status == "accepted"),
+        "rejected": sum(1 for booking in bookings if booking.status == "rejected"),
+        "canceled": sum(1 for booking in bookings if booking.status == "canceled"),
+        "revenue_estimate": sum(booking.price for booking in bookings if booking.status in {"accepted", "completed"}),
+    }
+    return {"summary": summary}
