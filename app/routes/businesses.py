@@ -299,3 +299,24 @@ def business_detail(business_id: str, db: Session = Depends(get_db)):
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
     return {"business": serialize_business(db, business)}
+
+@router.get("/{business_id}/reviews")
+def business_reviews(business_id: str, db: Session = Depends(get_db)):
+    business = db.get(Business, business_id)
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    reviews = list(db.scalars(select(Review).where(Review.business_id == business_id).order_by(Review.created_at.desc())))
+    return {
+        "items": [
+            {
+                "id": review.id,
+                "user_id": review.user_id,
+                "business_id": review.business_id,
+                "rating": review.rating,
+                "comment": review.comment,
+                "created_at": review.created_at,
+                "updated_at": review.updated_at,
+            }
+            for review in reviews
+        ]
+    }
