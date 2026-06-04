@@ -137,3 +137,7 @@ def list_businesses(
     if available is not None:
         businesses = [business for business in businesses if business.availability_status == available]
     return {"items": [serialize_business(db, business) for business in businesses]}
+
+@router.get("/categories")
+def list_categories():
+    return {"items": CATEGORIES}
