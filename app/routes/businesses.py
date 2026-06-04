@@ -183,3 +183,25 @@ def update_my_team(payload: TeamUpdateRequest, current_business: Business = Depe
     db.commit()
     db.refresh(current_business)
     return {"team": current_business.team or []}
+
+@router.get("/me/bookings")
+def list_my_business_bookings(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    items = list(db.scalars(select(Booking).where(Booking.business_id == current_business.id).order_by(Booking.start_at.desc())))
+    return {
+        "items": [
+            {
+                "id": booking.id,
+                "user_id": booking.user_id,
+                "business_id": booking.business_id,
+                "service_id": booking.service_id,
+                "start_at": booking.start_at,
+                "end_at": booking.end_at,
+                "notes": booking.notes,
+                "status": booking.status,
+                "price": booking.price,
+                "created_at": booking.created_at,
+                "updated_at": booking.updated_at,
+            }
+            for booking in items
+        ]
+    }
