@@ -364,3 +364,19 @@ def rate_business(business_id: str, payload: BusinessReviewRequest, current_user
         },
         "business": serialize_business(db, business),
     }
+
+@router.post("/{business_id}/availability-blocks")
+def add_availability_block(business_id: str, payload: AvailabilityBlockCreateRequest, current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    if current_business.id != business_id:
+        raise HTTPException(status_code=403, detail="You can only manage your own business")
+    block = AvailabilityBlock(
+        id=make_id("block"),
+        business_id=business_id,
+        start_at=payload.start_at,
+        end_at=payload.end_at,
+        reason=payload.reason,
+    )
+    db.add(block)
+    db.commit()
+    db.refresh(block)
+    return {"block": block.__dict__}
