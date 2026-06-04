@@ -265,3 +265,10 @@ def business_team(business_id: str, db: Session = Depends(get_db)):
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
     return {"items": business.team or []}
+
+@router.get("/{business_id}/gallery")
+def business_gallery(business_id: str, db: Session = Depends(get_db)):
+    business = db.get(Business, business_id)
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    return {"items": business.gallery or []}
