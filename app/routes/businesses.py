@@ -380,3 +380,19 @@ def add_availability_block(business_id: str, payload: AvailabilityBlockCreateReq
     db.commit()
     db.refresh(block)
     return {"block": block.__dict__}
+
+@router.delete("/{business_id}/availability-blocks/{block_id}")
+def remove_availability_block(business_id: str, block_id: str, current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    if current_business.id != business_id:
+        raise HTTPException(status_code=403, detail="You can only manage your own business")
+    block = db.get(AvailabilityBlock, block_id)
+    if not block or block.business_id != business_id:
+        raise HTTPException(status_code=404, detail="Block not found")
+    db.delete(block)
+    db.commit()
+    return {"message": "Bloque eliminado"}
+
+
+def check_business_availability_for_booking(business_id: str, start_at: datetime, duration_minutes: int, db: Session, ignore_booking_id: str | None = None) -> tuple[bool, datetime]:
+    end_at = start_at + timedelta(minutes=duration_minutes)
+    return business_is_available(db, business_id, start_at, end_at, ignore_booking_id=ignore_booking_id), end_at
