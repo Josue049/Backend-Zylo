@@ -320,3 +320,47 @@ def business_reviews(business_id: str, db: Session = Depends(get_db)):
             for review in reviews
         ]
     }
+
+@router.post("/{business_id}/reviews")
+def rate_business(business_id: str, payload: BusinessReviewRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "client":
+        raise HTTPException(status_code=403, detail="Only client users can rate businesses")
+
+    business = db.get(Business, business_id)
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+
+    comment = payload.comment.strip() if payload.comment is not None else None
+    if comment == "":
+        comment = None
+
+    review = db.scalar(select(Review).where(Review.business_id == business_id, Review.user_id == current_user.id))
+    if review is None:
+        review = Review(
+            id=make_id("rev"),
+            user_id=current_user.id,
+            business_id=business_id,
+            rating=payload.rating,
+            comment=comment,
+        )
+        db.add(review)
+    else:
+        review.rating = payload.rating
+        review.comment = comment
+
+    db.commit()
+    recalculate_business_rating(db, business)
+    db.commit()
+    db.refresh(business)
+    return {
+        "review": {
+            "id": review.id,
+            "user_id": review.user_id,
+            "business_id": review.business_id,
+            "rating": review.rating,
+            "comment": review.comment,
+            "created_at": review.created_at,
+            "updated_at": review.updated_at,
+        },
+        "business": serialize_business(db, business),
+    }
