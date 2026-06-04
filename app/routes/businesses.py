@@ -146,3 +146,8 @@ def list_categories():
 def featured_businesses(db: Session = Depends(get_db)):
     businesses = list(db.scalars(select(Business).where(Business.featured.is_(True)).order_by(Business.created_at.desc())))
     return {"items": [serialize_business(db, business) for business in businesses]}
+
+@router.get("/me/services")
+def list_my_services(current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    items = list(db.scalars(select(Service).where(Service.business_id == current_business.id).order_by(Service.created_at.desc())))
+    return {"items": [service_payload(service) for service in items]}
