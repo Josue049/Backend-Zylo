@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 
 
 class Settings(BaseSettings):
-    database_url: str = "sqlite:////tmp/zylo.db"
+    database_url: str = "postgresql://zylo_user:una_password_segura@159.112.142.234:5432/herramientas_db"
     cloudinary_cloud_name: str | None = None
     cloudinary_api_key: str | None = None
     cloudinary_api_secret: str | None = None
@@ -28,8 +28,6 @@ class Settings(BaseSettings):
 settings = Settings()
 
 engine_kwargs = {"future": True, "pool_pre_ping": True}
-if settings.database_url.startswith("sqlite"):
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
 
 engine = create_engine(settings.database_url, **engine_kwargs)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False, future=True)
