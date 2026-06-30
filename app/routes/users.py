@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
-
+from .businesses import category_name
 from ..cloudinary_api import upload_image_bytes
 from ..db import get_db, settings
 from ..deps import get_current_user
@@ -63,23 +63,9 @@ async def upload_photo(photo: UploadFile = File(...), current_user=Depends(get_c
     favorites_count = db.scalar(select(func.count()).select_from(Favorite).where(Favorite.user_id == current_user.id)) or 0
     return {"user": user_payload(current_user, business_id=current_user.business_id, favorites_count=favorites_count), "photo_url": current_user.photo_url}
 
-CATEGORIES = [
-    {"id": "salon",   "name": "Salón"},
-    {"id": "spa",     "name": "Spa"},
-    {"id": "barber",  "name": "Barbería"},
-    {"id": "fitness", "name": "Fitness"},
-]
-
-def _category_name(category_id: str | None) -> str | None:
-    if not category_id:
-        return None
-    match = next((c for c in CATEGORIES if c["id"] == category_id), None)
-    return match["name"] if match else category_id
-
 
 @router.get("/me/favorites")
 def list_favorites(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    # Query 1: IDs de favoritos del usuario
     favorite_ids: list[str] = list(
         db.scalars(
             select(Favorite.business_id)
@@ -90,7 +76,6 @@ def list_favorites(current_user=Depends(get_current_user), db: Session = Depends
     if not favorite_ids:
         return {"items": []}
 
-    # Query 2: negocios + conteos de servicios en una sola pasada
     rows = db.execute(
         select(
             Business,
@@ -112,11 +97,13 @@ def list_favorites(current_user=Depends(get_current_user), db: Session = Depends
                 business,
                 services_count=services_count or 0,
                 active_services_count=active_services_count or 0,
-                category_name=_category_name(business.category_id),  # ← fix
+                category_name=category_name(business.category_id),
             )
         )
 
     return {"items": businesses}
+
+
 @router.post("/me/favorites/{business_id}")
 def add_favorite(business_id: str, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     business = db.get(Business, business_id)
