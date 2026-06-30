@@ -14,6 +14,19 @@ from .businesses import check_business_availability_for_booking, service_allows_
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 
+@router.get("")
+def list_my_bookings(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "client":
+        raise HTTPException(status_code=403, detail="Only client users can list their bookings")
+    bookings = (
+        db.query(Booking)
+        .filter(Booking.user_id == current_user.id)
+        .order_by(Booking.start_at.desc())
+        .all()
+    )
+    return {"bookings": [booking_payload(b, db) for b in bookings]}
+
+
 @router.post("")
 def create_booking(payload: BookingCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "client":
