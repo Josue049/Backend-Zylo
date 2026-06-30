@@ -409,3 +409,40 @@ def remove_availability_block(business_id: str, block_id: str, current_business:
 def check_business_availability_for_booking(business_id: str, start_at: datetime, duration_minutes: int, db: Session, ignore_booking_id: str | None = None) -> tuple[bool, datetime]:
     end_at = start_at + timedelta(minutes=duration_minutes)
     return business_is_available(db, business_id, start_at, end_at, ignore_booking_id=ignore_booking_id), end_at
+
+@router.get("/me/bookings/aceptado")
+def list_my_business_bookings_accepted(
+    current_business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db)
+):
+    items = db.scalars(
+        select(Booking)
+        .where(
+            Booking.business_id == current_business.id,
+            Booking.status == "aceptado"
+        )
+        .order_by(Booking.start_at.desc())
+    ).all()
+
+    return {
+        "items": [
+            {
+                "id": booking.id,
+                "user_name": db.scalar(
+                    select(User.name).where(User.id == booking.user_id)
+                ) or "Cliente",
+                "business_id": booking.business_id,
+                "service_name": db.scalar(
+                    select(Service.name).where(Service.id == booking.service_id)
+                ) or "Servicio",
+                "start_at": booking.start_at.isoformat(),
+                "end_at": booking.end_at.isoformat(),
+                "notes": booking.notes,
+                "status": booking.status,
+                "price": booking.price,
+                "created_at": booking.created_at,
+                "updated_at": booking.updated_at,
+            }
+            for booking in items
+        ]
+    }
