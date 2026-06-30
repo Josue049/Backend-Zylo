@@ -191,9 +191,13 @@ def list_my_business_bookings(current_business: Business = Depends(get_current_b
         "items": [
             {
                 "id": booking.id,
-                "user_id": booking.user_id,
+                "user_name": db.scalar(
+                    select(User.name).where(User.id == booking.user_id)
+                ),
                 "business_id": booking.business_id,
-                "service_id": booking.service_id,
+                "service_name": db.scalar(
+                    select(Service.name).where(Service.id == booking.service_id)
+                ),
                 "start_at": booking.start_at,
                 "end_at": booking.end_at,
                 "notes": booking.notes,
@@ -258,6 +262,15 @@ def business_services(business_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Business not found")
     items = list(db.scalars(select(Service).where(Service.business_id == business_id).order_by(Service.created_at.desc())))
     return {"items": [service_payload(service) for service in items]}
+
+@router.delete("/me/services/{service_id}")
+def delete_my_service(service_id: str, current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    service = db.get(Service, service_id)
+    if not service or service.business_id != current_business.id:
+        raise HTTPException(status_code=404, detail="Service not found")
+    db.delete(service)
+    db.commit()
+    return {"message": "Servicio eliminado"}
 
 @router.get("/{business_id}/team")
 def business_team(business_id: str, db: Session = Depends(get_db)):

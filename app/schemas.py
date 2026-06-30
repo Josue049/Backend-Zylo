@@ -83,10 +83,8 @@ class BookingCreateRequest(BaseModel):
 class BookingRescheduleRequest(BaseModel):
     start_at: datetime
 
-
 class BookingStatusRequest(BaseModel):
-    status: Literal["accepted", "rejected"]
-
+    status: Literal["aceptado", "rechazado"]
 
 class BusinessReviewRequest(BaseModel):
     rating: float = Field(ge=1, le=5)

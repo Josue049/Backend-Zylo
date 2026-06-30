@@ -63,21 +63,60 @@ async def upload_photo(photo: UploadFile = File(...), current_user=Depends(get_c
     favorites_count = db.scalar(select(func.count()).select_from(Favorite).where(Favorite.user_id == current_user.id)) or 0
     return {"user": user_payload(current_user, business_id=current_user.business_id, favorites_count=favorites_count), "photo_url": current_user.photo_url}
 
+CATEGORIES = [
+    {"id": "salon",   "name": "Salón"},
+    {"id": "spa",     "name": "Spa"},
+    {"id": "barber",  "name": "Barbería"},
+    {"id": "fitness", "name": "Fitness"},
+]
+
+def _category_name(category_id: str | None) -> str | None:
+    if not category_id:
+        return None
+    match = next((c for c in CATEGORIES if c["id"] == category_id), None)
+    return match["name"] if match else category_id
+
 
 @router.get("/me/favorites")
 def list_favorites(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    favorites = list(db.scalars(select(Favorite).where(Favorite.user_id == current_user.id)))
+    # Query 1: IDs de favoritos del usuario
+    favorite_ids: list[str] = list(
+        db.scalars(
+            select(Favorite.business_id)
+            .where(Favorite.user_id == current_user.id)
+        )
+    )
+
+    if not favorite_ids:
+        return {"items": []}
+
+    # Query 2: negocios + conteos de servicios en una sola pasada
+    rows = db.execute(
+        select(
+            Business,
+            func.count(Service.id).label("services_count"),
+            func.sum(
+                case((Service.active == True, 1), else_=0)
+            ).label("active_services_count"),
+        )
+        .outerjoin(Service, Service.business_id == Business.id)
+        .where(Business.id.in_(favorite_ids))
+        .group_by(Business.id)
+    ).all()
+
     businesses = []
-    for favorite in favorites:
-        business = db.get(Business, favorite.business_id)
-        if not business:
-            continue
-        services_count = db.scalar(select(func.count()).select_from(Service).where(Service.business_id == business.id)) or 0
-        active_services_count = db.scalar(select(func.count()).select_from(Service).where(Service.business_id == business.id, Service.active.is_(True))) or 0
-        businesses.append(business_payload(business, services_count=services_count or 0, active_services_count=active_services_count or 0))
+    for row in rows:
+        business, services_count, active_services_count = row
+        businesses.append(
+            business_payload(
+                business,
+                services_count=services_count or 0,
+                active_services_count=active_services_count or 0,
+                category_name=_category_name(business.category_id),  # ← fix
+            )
+        )
+
     return {"items": businesses}
-
-
 @router.post("/me/favorites/{business_id}")
 def add_favorite(business_id: str, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     business = db.get(Business, business_id)
