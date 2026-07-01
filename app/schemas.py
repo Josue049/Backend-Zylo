@@ -115,3 +115,22 @@ class NotificationCreateRequest(BaseModel):
 
 class GenericMessageOut(BaseModel):
     message: str
+
+class BusinessUpdateRequest(BaseModel):
+    """All fields optional — only the ones sent by the client are
+    updated (see `exclude_unset=True` in the PATCH /businesses/me route)."""
+
+    name: str | None = None
+    description: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    address: str | None = None
+    city: str | None = None
+    category_id: str | None = None
+    image_url: str | None = None
+    weekly_hours: dict[str, list[str]] | None = None
+    availability_status: bool | None = None
+
+
+class GalleryUpdateRequest(BaseModel):
+    items: list[str]

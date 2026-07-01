@@ -255,6 +255,72 @@ def business_stats(current_business: Business = Depends(get_current_business), d
         "average_rating": average_rating,
     }
 
+@router.get("/me")
+def get_my_business(
+    current_business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+):
+    return {"business": serialize_business(db, current_business)}
+
+
+@router.patch("/me")
+def update_my_business(
+    payload: BusinessUpdateRequest,
+    current_business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+):
+    data = payload.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        setattr(current_business, field, value)
+    db.commit()
+    db.refresh(current_business)
+    return {"business": serialize_business(db, current_business)}
+
+
+@router.get("/me/gallery")
+def get_my_gallery(current_business: Business = Depends(get_current_business)):
+    return {"items": current_business.gallery or []}
+
+
+@router.patch("/me/gallery")
+def update_my_gallery(
+    payload: GalleryUpdateRequest,
+    current_business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+):
+    current_business.gallery = payload.items
+    db.commit()
+    db.refresh(current_business)
+    return {"items": current_business.gallery or []}
+
+
+@router.get("/me/reviews")
+def get_my_reviews(
+    current_business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+):
+    reviews = list(
+        db.scalars(
+            select(Review)
+            .where(Review.business_id == current_business.id)
+            .order_by(Review.created_at.desc())
+        )
+    )
+    return {
+        "items": [
+            {
+                "id": review.id,
+                "user_id": review.user_id,
+                "business_id": review.business_id,
+                "rating": review.rating,
+                "comment": review.comment,
+                "created_at": review.created_at,
+                "updated_at": review.updated_at,
+            }
+            for review in reviews
+        ]
+    }
+
 @router.get("/{business_id}/services")
 def business_services(business_id: str, db: Session = Depends(get_db)):
     business = db.get(Business, business_id)
