@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..deps import get_current_business, get_current_user
 from ..models import AvailabilityBlock, Booking, Business, Review, Service, User
-from ..schemas import AvailabilityBlockCreateRequest, BusinessReviewRequest, ServiceCreateRequest, TeamUpdateRequest
+from ..schemas import AvailabilityBlockCreateRequest, BusinessReviewRequest, ServiceCreateRequest, TeamUpdateRequest, BusinessUpdateRequest, GalleryUpdateRequest
 from ..serializers import business_payload, service_payload
 from ..utils import make_id
 
