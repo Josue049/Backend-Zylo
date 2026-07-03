@@ -39,7 +39,7 @@ app = FastAPI(title="Zylo API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,11 +77,24 @@ def ensure_service_schema() -> None:
                 connection.execute(text(statement))
 
 
+def ensure_review_schema() -> None:
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    if "reviews" not in table_names:
+        return
+
+    constraint_names = {constraint["name"] for constraint in inspector.get_unique_constraints("reviews")}
+    if "uq_review_user_business" in constraint_names:
+        with engine.begin() as connection:
+            connection.execute(text('ALTER TABLE reviews DROP CONSTRAINT IF EXISTS uq_review_user_business'))
+
+
 @app.on_event("startup")
 def on_startup() -> None:
     try:
         Base.metadata.create_all(bind=engine)
         ensure_service_schema()
+        ensure_review_schema()
         with SessionLocal() as db:
             seed_demo_data(db)
     except Exception:

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..deps import get_current_business, get_current_user
-from ..models import Business, Conversation, Message, User
+from ..models import Business, Conversation, Message, Notification, User
 from ..schemas import ConversationCreateRequest, MessageCreateRequest
 from ..serializers import conversation_payload, message_payload
 from ..utils import make_id
@@ -67,7 +67,7 @@ def list_messages(conversation_id: str, current_user: User = Depends(get_current
     if not conversation or not conversation_visible_to_user(conversation, current_user, db):
         raise HTTPException(status_code=404, detail="Conversation not found")
     items = list(db.scalars(select(Message).where(Message.conversation_id == conversation_id).order_by(Message.created_at.asc())))
-    return {"items": [message_payload(message) for message in items]}
+    return {"items": [message_payload(message, db) for message in items]}
 
 
 @router.post("/{conversation_id}/messages")
@@ -78,9 +78,30 @@ def send_message(conversation_id: str, payload: MessageCreateRequest, current_us
     message = Message(id=make_id("msg"), conversation_id=conversation_id, sender_user_id=current_user.id, content=payload.content)
     db.add(message)
     conversation.updated_at = utcnow()
+
+    if current_user.role == "business_owner":
+        recipient_user_id = conversation.user_id
+        business = db.scalar(select(Business).where(Business.owner_user_id == current_user.id))
+        business_name = business.name if business else "Tu negocio"
+    else:
+        recipient_user_id = db.scalar(select(Business.owner_user_id).where(Business.id == conversation.business_id))
+        business = db.get(Business, conversation.business_id)
+        business_name = business.name if business else "Negocio"
+
+    if recipient_user_id:
+        db.add(
+            Notification(
+                id=make_id("note"),
+                recipient_user_id=recipient_user_id,
+                type="new_message",
+                title=f"Nuevo mensaje de {current_user.name}",
+                message=payload.content[:120],
+                read=False,
+            )
+        )
     db.commit()
     db.refresh(message)
-    return {"message": message_payload(message)}
+    return {"message": message_payload(message, db)}
 
 
 @router.patch("/{conversation_id}/read")

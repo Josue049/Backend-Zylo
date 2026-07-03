@@ -83,7 +83,6 @@ class Favorite(Base):
 
 class Review(Base):
     __tablename__ = "reviews"
-    __table_args__ = (UniqueConstraint("user_id", "business_id", name="uq_review_user_business"),)
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)

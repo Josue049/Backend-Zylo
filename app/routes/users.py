@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
@@ -44,7 +46,8 @@ async def upload_photo(photo: UploadFile = File(...), current_user=Depends(get_c
         raise HTTPException(status_code=500, detail="Cloudinary is not configured")
 
     try:
-        result = upload_image_bytes(
+        result = await asyncio.to_thread(
+            upload_image_bytes,
             cloud_name=settings.cloudinary_cloud_name,
             api_key=settings.cloudinary_api_key,
             api_secret=settings.cloudinary_api_secret,

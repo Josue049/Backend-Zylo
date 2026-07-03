@@ -3,18 +3,26 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone, time
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import asyncio
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..cloudinary_api import upload_image_bytes
 from ..db import get_db
 from ..deps import get_current_business, get_current_user
 from ..models import AvailabilityBlock, Booking, Business, Review, Service, User
 from ..schemas import AvailabilityBlockCreateRequest, BusinessReviewRequest, ServiceCreateRequest, TeamUpdateRequest, BusinessUpdateRequest, GalleryUpdateRequest
-from ..serializers import business_payload, service_payload
+from ..serializers import business_payload, review_payload, service_payload
+from ..db import settings
 from ..utils import make_id
 
 router = APIRouter(prefix="/businesses", tags=["businesses"])
+
+BOOKING_STATUS_ACCEPTED = {"accepted", "aceptado"}
+BOOKING_STATUS_REJECTED = {"rejected", "rechazado"}
+BOOKING_STATUS_INACTIVE = BOOKING_STATUS_REJECTED | {"canceled", "cancelled"}
 
 CATEGORIES = [
     {"id": "salon", "name": "Salón"},
@@ -64,7 +72,7 @@ def business_is_available(db: Session, business_id: str, start_at: datetime, end
     for booking in bookings:
         if ignore_booking_id and booking.id == ignore_booking_id:
             continue
-        if booking.status in {"canceled", "rejected"}:
+        if normalize_booking_status(booking.status) in BOOKING_STATUS_INACTIVE:
             continue
         if overlaps(start_at, end_at, booking.start_at, booking.end_at):
             return False
@@ -77,6 +85,15 @@ def business_owned_by_current_user(current_business: Business) -> Business:
 
 def business_team_member_ids(business: Business) -> set[str]:
     return {member.get("id") for member in (business.team or []) if isinstance(member, dict) and member.get("id")}
+
+
+def normalize_booking_status(status: str) -> str:
+    normalized = status.strip().lower()
+    if normalized in BOOKING_STATUS_ACCEPTED:
+        return "accepted"
+    if normalized in BOOKING_STATUS_REJECTED:
+        return "rejected"
+    return normalized
 
 
 WEEKDAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -215,14 +232,15 @@ def dashboard_summary(current_business: Business = Depends(get_current_business)
     bookings = list(db.scalars(select(Booking).where(Booking.business_id == current_business.id)))
     today = utcnow().date()
     todays_bookings = [booking for booking in bookings if booking.start_at.date() == today]
+    normalized_statuses = [normalize_booking_status(booking.status) for booking in bookings]
     summary = {
         "today_bookings": len(todays_bookings),
         "total_bookings": len(bookings),
-        "pending": sum(1 for booking in bookings if booking.status == "pending"),
-        "accepted": sum(1 for booking in bookings if booking.status == "accepted"),
-        "rejected": sum(1 for booking in bookings if booking.status == "rejected"),
-        "canceled": sum(1 for booking in bookings if booking.status == "canceled"),
-        "revenue_estimate": sum(booking.price for booking in bookings if booking.status in {"accepted", "completed"}),
+        "pending": sum(1 for status in normalized_statuses if status == "pending"),
+        "accepted": sum(1 for status in normalized_statuses if status == "accepted"),
+        "rejected": sum(1 for status in normalized_statuses if status == "rejected"),
+        "canceled": sum(1 for status in normalized_statuses if status in {"canceled", "cancelled"}),
+        "revenue_estimate": sum(booking.price for booking in bookings if normalize_booking_status(booking.status) in {"accepted", "completed"}),
     }
     return {"summary": summary}
 
@@ -234,7 +252,22 @@ def weekly_agenda(current_business: Business = Depends(get_current_business), db
     for booking in db.scalars(select(Booking).where(Booking.business_id == current_business.id)):
         booking_date = booking.start_at.date()
         if start <= booking_date < end:
-            agenda[str(booking_date)].append(booking.__dict__)
+            agenda[str(booking_date)].append(
+                {
+                    "id": booking.id,
+                    "user_id": booking.user_id,
+                    "business_id": booking.business_id,
+                    "service_id": booking.service_id,
+                    "professional_id": booking.professional_id,
+                    "start_at": booking.start_at,
+                    "end_at": booking.end_at,
+                    "notes": booking.notes,
+                    "status": normalize_booking_status(booking.status),
+                    "price": booking.price,
+                    "created_at": booking.created_at,
+                    "updated_at": booking.updated_at,
+                }
+            )
     return {"agenda": dict(agenda)}
 
 @router.get("/me/stats")
@@ -245,7 +278,7 @@ def business_stats(current_business: Business = Depends(get_current_business), d
     by_status = defaultdict(int)
     for booking in bookings:
         by_service[booking.service_id] += 1
-        by_status[booking.status] += 1
+        by_status[normalize_booking_status(booking.status)] += 1
     average_rating = round(sum(review.rating for review in reviews) / len(reviews), 2) if reviews else 0.0
     return {
         "by_service": dict(by_service),
@@ -294,6 +327,105 @@ def update_my_gallery(
     return {"items": current_business.gallery or []}
 
 
+@router.post("/me/gallery/upload")
+async def upload_my_gallery_images(
+    files: list[UploadFile] = File(...),
+    index: int | None = Form(default=None),
+    current_business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+):
+    if not settings.cloudinary_cloud_name or not settings.cloudinary_api_key or not settings.cloudinary_api_secret:
+        raise HTTPException(status_code=500, detail="Cloudinary is not configured")
+
+    uploaded_urls: list[str] = []
+    try:
+        for file in files:
+            if not file.content_type or not file.content_type.startswith("image/"):
+                raise HTTPException(status_code=400, detail="Only image files are allowed")
+            contents = await file.read()
+            if not contents:
+                continue
+            result = await asyncio.to_thread(
+                upload_image_bytes,
+                cloud_name=settings.cloudinary_cloud_name,
+                api_key=settings.cloudinary_api_key,
+                api_secret=settings.cloudinary_api_secret,
+                folder=settings.cloudinary_upload_folder,
+                file_name=file.filename or "gallery-image",
+                file_bytes=contents,
+                content_type=file.content_type,
+                public_id=f"{current_business.id}/gallery/{make_id('img')}",
+                timeout_seconds=settings.cloudinary_timeout_seconds,
+            )
+            uploaded_urls.append(result["secure_url"])
+    except HTTPException:
+        raise
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=502, detail=f"Upload failed: {exc}") from exc
+
+    if uploaded_urls:
+        # Normalizamos a 4 slots fijos (con None para vacíos)
+        current_gallery = list(current_business.gallery or [])
+        current_gallery = (current_gallery + [None] * 4)[:4]
+
+        if index is not None and 0 <= index < 4:
+            # Reemplaza el slot exacto que el usuario seleccionó
+            current_gallery[index] = uploaded_urls[0]
+        else:
+            # Fallback: llena el primer slot vacío, o el último si ya están todos llenos
+            placed = False
+            for i in range(4):
+                if current_gallery[i] is None:
+                    current_gallery[i] = uploaded_urls[-1]
+                    placed = True
+                    break
+            if not placed:
+                current_gallery[3] = uploaded_urls[-1]
+
+        current_business.gallery = current_gallery
+        db.commit()
+        db.refresh(current_business)
+
+    return {"items": current_business.gallery or [], "uploaded": uploaded_urls}
+
+@router.post("/me/photo")
+async def upload_business_photo(photo: UploadFile = File(...), current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
+    if not photo.content_type or not photo.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+
+    contents = await photo.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    if not settings.cloudinary_cloud_name or not settings.cloudinary_api_key or not settings.cloudinary_api_secret:
+        raise HTTPException(status_code=500, detail="Cloudinary is not configured")
+
+    try:
+        result = await asyncio.to_thread(
+            upload_image_bytes,
+            cloud_name=settings.cloudinary_cloud_name,
+            api_key=settings.cloudinary_api_key,
+            api_secret=settings.cloudinary_api_secret,
+            folder=settings.cloudinary_upload_folder,
+            file_name=photo.filename or "business-photo",
+            file_bytes=contents,
+            content_type=photo.content_type,
+            public_id=current_business.id,
+            timeout_seconds=settings.cloudinary_timeout_seconds,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    current_business.image_url = result["secure_url"]
+    db.commit()
+    db.refresh(current_business)
+    return {"business": serialize_business(db, current_business), "image_url": current_business.image_url}
+
+
 @router.get("/me/reviews")
 def get_my_reviews(
     current_business: Business = Depends(get_current_business),
@@ -307,18 +439,7 @@ def get_my_reviews(
         )
     )
     return {
-        "items": [
-            {
-                "id": review.id,
-                "user_id": review.user_id,
-                "business_id": review.business_id,
-                "rating": review.rating,
-                "comment": review.comment,
-                "created_at": review.created_at,
-                "updated_at": review.updated_at,
-            }
-            for review in reviews
-        ]
+        "items": [review_payload(review, db) for review in reviews]
     }
 
 @router.get("/{business_id}/services")
@@ -350,7 +471,7 @@ def business_gallery(business_id: str, db: Session = Depends(get_db)):
     business = db.get(Business, business_id)
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
-    return {"items": business.gallery or []}
+    return {"items": [url for url in (business.gallery or []) if url]}
 
 @router.get("/{business_id}/availability")
 def business_availability(business_id: str, db: Session = Depends(get_db)):
@@ -358,7 +479,11 @@ def business_availability(business_id: str, db: Session = Depends(get_db)):
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
     blocks = list(db.scalars(select(AvailabilityBlock).where(AvailabilityBlock.business_id == business_id)))
-    bookings = list(db.scalars(select(Booking).where(Booking.business_id == business_id, ~Booking.status.in_(["canceled", "rejected"]))))
+    bookings = [
+        booking
+        for booking in db.scalars(select(Booking).where(Booking.business_id == business_id)).all()
+        if normalize_booking_status(booking.status) not in BOOKING_STATUS_INACTIVE
+    ]
     return {
         "business_id": business_id,
         "blocks": [
@@ -366,7 +491,7 @@ def business_availability(business_id: str, db: Session = Depends(get_db)):
             for block in blocks
         ],
         "bookings": [
-            {"id": booking.id, "user_id": booking.user_id, "business_id": booking.business_id, "service_id": booking.service_id, "start_at": booking.start_at, "end_at": booking.end_at, "notes": booking.notes, "status": booking.status, "price": booking.price, "created_at": booking.created_at, "updated_at": booking.updated_at}
+            {"id": booking.id, "user_id": booking.user_id, "business_id": booking.business_id, "service_id": booking.service_id, "start_at": booking.start_at, "end_at": booking.end_at, "notes": booking.notes, "status": normalize_booking_status(booking.status), "price": booking.price, "created_at": booking.created_at, "updated_at": booking.updated_at}
             for booking in bookings
         ],
         "weekly_hours": business.weekly_hours or {},
@@ -386,18 +511,7 @@ def business_reviews(business_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Business not found")
     reviews = list(db.scalars(select(Review).where(Review.business_id == business_id).order_by(Review.created_at.desc())))
     return {
-        "items": [
-            {
-                "id": review.id,
-                "user_id": review.user_id,
-                "business_id": review.business_id,
-                "rating": review.rating,
-                "comment": review.comment,
-                "created_at": review.created_at,
-                "updated_at": review.updated_at,
-            }
-            for review in reviews
-        ]
+        "items": [review_payload(review, db) for review in reviews]
     }
 
 @router.post("/{business_id}/reviews")
@@ -413,34 +527,50 @@ def rate_business(business_id: str, payload: BusinessReviewRequest, current_user
     if comment == "":
         comment = None
 
-    review = db.scalar(select(Review).where(Review.business_id == business_id, Review.user_id == current_user.id))
-    if review is None:
-        review = Review(
-            id=make_id("rev"),
-            user_id=current_user.id,
-            business_id=business_id,
-            rating=payload.rating,
-            comment=comment,
-        )
-        db.add(review)
-    else:
-        review.rating = payload.rating
-        review.comment = comment
+    review = Review(
+        id=make_id("rev"),
+        user_id=current_user.id,
+        business_id=business_id,
+        rating=payload.rating,
+        comment=comment,
+    )
+    db.add(review)
 
     db.commit()
     recalculate_business_rating(db, business)
     db.commit()
     db.refresh(business)
     return {
-        "review": {
-            "id": review.id,
-            "user_id": review.user_id,
-            "business_id": review.business_id,
-            "rating": review.rating,
-            "comment": review.comment,
-            "created_at": review.created_at,
-            "updated_at": review.updated_at,
-        },
+        "review": review_payload(review, db),
+        "business": serialize_business(db, business),
+    }
+
+
+@router.delete("/{business_id}/reviews/{review_id}")
+def delete_business_review(
+    business_id: str,
+    review_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    business = db.get(Business, business_id)
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+
+    review = db.get(Review, review_id)
+    if not review or review.business_id != business_id:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    if review.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only delete your own review")
+
+    db.delete(review)
+    db.commit()
+    recalculate_business_rating(db, business)
+    db.commit()
+    db.refresh(business)
+    return {
+        "message": "Reseña eliminada",
         "business": serialize_business(db, business),
     }
 
@@ -458,7 +588,16 @@ def add_availability_block(business_id: str, payload: AvailabilityBlockCreateReq
     db.add(block)
     db.commit()
     db.refresh(block)
-    return {"block": block.__dict__}
+    return {
+        "block": {
+            "id": block.id,
+            "business_id": block.business_id,
+            "start_at": block.start_at,
+            "end_at": block.end_at,
+            "reason": block.reason,
+            "created_at": block.created_at,
+        }
+    }
 
 @router.delete("/{business_id}/availability-blocks/{block_id}")
 def remove_availability_block(business_id: str, block_id: str, current_business: Business = Depends(get_current_business), db: Session = Depends(get_db)):
@@ -476,6 +615,7 @@ def check_business_availability_for_booking(business_id: str, start_at: datetime
     end_at = start_at + timedelta(minutes=duration_minutes)
     return business_is_available(db, business_id, start_at, end_at, ignore_booking_id=ignore_booking_id), end_at
 
+@router.get("/me/bookings/accepted")
 @router.get("/me/bookings/aceptado")
 def list_my_business_bookings_accepted(
     current_business: Business = Depends(get_current_business),
@@ -483,12 +623,10 @@ def list_my_business_bookings_accepted(
 ):
     items = db.scalars(
         select(Booking)
-        .where(
-            Booking.business_id == current_business.id,
-            Booking.status == "aceptado"
-        )
         .order_by(Booking.start_at.desc())
     ).all()
+
+    accepted_items = [booking for booking in items if normalize_booking_status(booking.status) == "accepted"]
 
     return {
         "items": [
@@ -504,11 +642,11 @@ def list_my_business_bookings_accepted(
                 "start_at": booking.start_at.isoformat(),
                 "end_at": booking.end_at.isoformat(),
                 "notes": booking.notes,
-                "status": booking.status,
+                "status": normalize_booking_status(booking.status),
                 "price": booking.price,
                 "created_at": booking.created_at,
                 "updated_at": booking.updated_at,
             }
-            for booking in items
+            for booking in accepted_items
         ]
     }

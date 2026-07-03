@@ -9,7 +9,7 @@ from ..models import Booking, Business, Notification, Service, User
 from ..schemas import BookingCreateRequest, BookingRescheduleRequest, BookingStatusRequest
 from ..serializers import booking_payload
 from ..utils import make_id
-from .businesses import check_business_availability_for_booking, service_allows_slot
+from .businesses import check_business_availability_for_booking, normalize_booking_status, service_allows_slot
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
@@ -140,13 +140,13 @@ def update_booking_status(booking_id: str, payload: BookingStatusRequest, curren
         raise HTTPException(status_code=404, detail="Booking not found")
     if booking.business_id != current_business.id:
         raise HTTPException(status_code=403, detail="Not allowed")
-    booking.status = payload.status
+    booking.status = normalize_booking_status(payload.status)
     notification = Notification(
         id=make_id("note"),
         recipient_user_id=booking.user_id,
         type="booking_status",
         title="Estado de reserva actualizado",
-        message=f"Tu reserva fue {payload.status}",
+        message=f"Tu reserva fue {booking.status}",
         read=False,
     )
     db.add(notification)
