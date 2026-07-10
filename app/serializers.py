@@ -7,6 +7,14 @@ from sqlalchemy.orm import Session
 
 from .models import Booking, Business, Conversation, Favorite, Message, Notification, Review, Service, User
 
+STATUS_TRANSLATIONS = {
+    "pending": "Pendiente",
+    "accepted": "Aceptada",
+    "rejected": "Rechazada",
+    "canceled": "Cancelada",
+    "cancelled": "Cancelada",
+    "completed": "Completada",
+}
 
 def user_payload(user: User, business_id: str | None = None, favorites_count: int = 0) -> dict:
     return {
@@ -135,7 +143,10 @@ def booking_payload(booking: Booking, db: Session) -> dict:
         "start_at": booking.start_at,
         "end_at": booking.end_at,
         "notes": booking.notes,
-        "status": booking.status,
+        "status": STATUS_TRANSLATIONS.get(
+            booking.status.lower() if booking.status else "",
+            booking.status,
+        ),
         "price": booking.price,
         "created_at": booking.created_at,
         "updated_at": booking.updated_at,
