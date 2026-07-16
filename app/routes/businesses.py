@@ -87,14 +87,16 @@ def business_team_member_ids(business: Business) -> set[str]:
     return {member.get("id") for member in (business.team or []) if isinstance(member, dict) and member.get("id")}
 
 def normalize_booking_status(status: str) -> str:
-    normalized = status.strip().lower()
+    normalized = (status or "").strip().lower()
     if normalized in {"accepted", "aceptado"}:
-        return "aceptado"
+        return "accepted"
     if normalized in {"rejected", "rechazado"}:
-        return "rechazado"
-    if normalized in {"canceled", "cancelled"}:
-        return "cancelado"
-    return normalized
+        return "rejected"
+    if normalized in {"canceled", "cancelled", "cancelado"}:
+        return "canceled"
+    if normalized in {"completed", "completado"}:
+        return "completed"
+    return normalized or "pending"
 
 
 WEEKDAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -219,7 +221,7 @@ def list_my_business_bookings(current_business: Business = Depends(get_current_b
                 "start_at": booking.start_at,
                 "end_at": booking.end_at,
                 "notes": booking.notes,
-                "status": booking.status,
+                "status": normalize_booking_status(booking.status),
                 "price": booking.price,
                 "created_at": booking.created_at,
                 "updated_at": booking.updated_at,
@@ -624,6 +626,7 @@ def list_my_business_bookings_accepted(
 ):
     items = db.scalars(
         select(Booking)
+        .where(Booking.business_id == current_business.id)
         .order_by(Booking.start_at.desc())
     ).all()
 
