@@ -7,6 +7,14 @@ from sqlalchemy.orm import Session
 
 from .models import Booking, Business, Conversation, Favorite, Message, Notification, Review, Service, User
 
+STATUS_TRANSLATIONS = {
+    "pending": "Pendiente",
+    "accepted": "Aceptada",
+    "rejected": "Rechazada",
+    "canceled": "Cancelada",
+    "cancelled": "Cancelada",
+    "completed": "Completada",
+}
 
 def user_payload(user: User, business_id: str | None = None, favorites_count: int = 0) -> dict:
     return {
@@ -88,10 +96,44 @@ def review_payload(review: Review, db: Session) -> dict:
     }
 
 
+# def booking_payload(booking: Booking, db: Session) -> dict:
+#     business = db.get(Business, booking.business_id)
+#     service = db.get(Service, booking.service_id)
+#     user = db.get(User, booking.user_id)
+#     return {
+#         "id": booking.id,
+#         "user_id": booking.user_id,
+#         "business_id": booking.business_id,
+#         "service_id": booking.service_id,
+#         "professional_id": booking.professional_id,
+#         "start_at": booking.start_at,
+#         "end_at": booking.end_at,
+#         "notes": booking.notes,
+#         "status": booking.status,
+#         "price": booking.price,
+#         "created_at": booking.created_at,
+#         "updated_at": booking.updated_at,
+#         "business": None if not business else {"id": business.id, "name": business.name, "category_id": business.category_id},
+#         "service": None if not service else {"id": service.id, "name": service.name, "duration_minutes": service.duration_minutes, "price": service.price},
+#         "user": None if not user else {"id": user.id, "name": user.name, "email": user.email},
+#     }
+
 def booking_payload(booking: Booking, db: Session) -> dict:
     business = db.get(Business, booking.business_id)
     service = db.get(Service, booking.service_id)
     user = db.get(User, booking.user_id)
+    
+    # 1. Resolver el Profesional asignado (que es un Usuario)
+    professional = db.get(User, booking.professional_id) if booking.professional_id else None
+    professional_name = professional.name if professional else "Profesional no asignado"
+
+    # 2. Resolver la imagen del negocio (imagen principal o primera de la galería)
+    business_image_url = None
+    if business:
+        business_image_url = business.image_url.strip() if isinstance(business.image_url, str) and business.image_url.strip() else None
+        if not business_image_url and business.gallery:
+            business_image_url = business.gallery[0]
+
     return {
         "id": booking.id,
         "user_id": booking.user_id,
@@ -101,15 +143,39 @@ def booking_payload(booking: Booking, db: Session) -> dict:
         "start_at": booking.start_at,
         "end_at": booking.end_at,
         "notes": booking.notes,
-        "status": booking.status,
+        "status": STATUS_TRANSLATIONS.get(
+            booking.status.lower() if booking.status else "",
+            booking.status,
+        ),
         "price": booking.price,
         "created_at": booking.created_at,
         "updated_at": booking.updated_at,
-        "business": None if not business else {"id": business.id, "name": business.name, "category_id": business.category_id},
-        "service": None if not service else {"id": service.id, "name": service.name, "duration_minutes": service.duration_minutes, "price": service.price},
-        "user": None if not user else {"id": user.id, "name": user.name, "email": user.email},
+        
+        # ─── CAMPOS PLANOS PARA TU FRONTEND (REQUERIDOS EN BOOKINGS.TSX) ───
+        "business_name": None if not business else business.name,
+        "business_image_url": business_image_url,
+        "service_name": None if not service else service.name,
+        "professional_name": professional_name,
+        
+        # ─── OBJETOS ANIDADOS (MANTENIDOS POR COMPATIBILIDAD) ───
+        "business": None if not business else {
+            "id": business.id, 
+            "name": business.name, 
+            "category_id": business.category_id,
+            "image_url": business_image_url
+        },
+        "service": None if not service else {
+            "id": service.id, 
+            "name": service.name, 
+            "duration_minutes": service.duration_minutes, 
+            "price": service.price
+        },
+        "user": None if not user else {
+            "id": user.id, 
+            "name": user.name, 
+            "email": user.email
+        },
     }
-
 
 def conversation_payload(conversation: Conversation, db: Session, current_user: User) -> dict:
     messages = list(db.scalars(select(Message).where(Message.conversation_id == conversation.id).order_by(Message.created_at.asc())))
