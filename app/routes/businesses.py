@@ -623,6 +623,7 @@ def list_my_business_bookings_accepted(
 ):
     items = db.scalars(
         select(Booking)
+        .where(Booking.business_id == current_business.id)
         .order_by(Booking.start_at.desc())
     ).all()
 

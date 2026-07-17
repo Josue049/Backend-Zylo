@@ -92,6 +92,16 @@ def booking_payload(booking: Booking, db: Session) -> dict:
     business = db.get(Business, booking.business_id)
     service = db.get(Service, booking.service_id)
     user = db.get(User, booking.user_id)
+
+    professional = db.get(User, booking.professional_id) if booking.professional_id else None
+    professional_name = professional.name if professional else "Profesional no asignado"
+
+    business_image_url = None
+    if business:
+        business_image_url = business.image_url.strip() if isinstance(business.image_url, str) and business.image_url.strip() else None
+        if not business_image_url and business.gallery:
+            business_image_url = business.gallery[0]
+
     return {
         "id": booking.id,
         "user_id": booking.user_id,
@@ -105,7 +115,14 @@ def booking_payload(booking: Booking, db: Session) -> dict:
         "price": booking.price,
         "created_at": booking.created_at,
         "updated_at": booking.updated_at,
-        "business": None if not business else {"id": business.id, "name": business.name, "category_id": business.category_id},
+
+        # Campos planos requeridos por Booking.tsx
+        "business_name": None if not business else business.name,
+        "business_image_url": business_image_url,
+        "service_name": None if not service else service.name,
+        "professional_name": professional_name,
+
+        "business": None if not business else {"id": business.id, "name": business.name, "category_id": business.category_id, "image_url": business_image_url},
         "service": None if not service else {"id": service.id, "name": service.name, "duration_minutes": service.duration_minutes, "price": service.price},
         "user": None if not user else {"id": user.id, "name": user.name, "email": user.email},
     }
