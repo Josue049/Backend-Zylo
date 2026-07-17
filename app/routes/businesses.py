@@ -86,14 +86,13 @@ def business_owned_by_current_user(current_business: Business) -> Business:
 def business_team_member_ids(business: Business) -> set[str]:
     return {member.get("id") for member in (business.team or []) if isinstance(member, dict) and member.get("id")}
 
+
 def normalize_booking_status(status: str) -> str:
     normalized = status.strip().lower()
-    if normalized in {"accepted", "aceptado"}:
-        return "aceptado"
-    if normalized in {"rejected", "rechazado"}:
-        return "rechazado"
-    if normalized in {"canceled", "cancelled"}:
-        return "cancelado"
+    if normalized in BOOKING_STATUS_ACCEPTED:
+        return "accepted"
+    if normalized in BOOKING_STATUS_REJECTED:
+        return "rejected"
     return normalized
 
 
